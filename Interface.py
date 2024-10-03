@@ -188,6 +188,26 @@ def personalized_grupal(rec_type, rec_subtype, group, threshold):
     return (f"This wine has been found as the best suggestion for all the {len(group)} members of the group. "
             f"Taking into account each user's past ratings and{subexplanation}, this one appeared as the wine with the greatest amount of positive votes among them.")
 
+### INDIVIDUAL RECOMMENDATION EXPLANATIONS ###
+# Function to explain the recommended wine for a single user
+def personalized_individual(rec_type_indiv, rec_subtype_indiv):
+    # Content-based
+    if rec_type_indiv == "Similar to my past liked items": 
+        subexplanation = f"it shares key features with wines you've previously rated highly."
+    
+    else: 
+        # CF item-item
+        if rec_subtype_indiv == 'Based on **:violet[item interaction]**.':
+            subexplanation = f"users who liked wines you previously enjoyed, also rated this wine highly."
+        else:
+        # CF user-user
+            subexplanation = f"users who rated wines you rated before similarly, also rated this wine highly."
+
+    return (f"We recommend this wine because {subexplanation}") 
+
+def nonpersonalized():
+    return (f"It could be an exciting new discovery that surprises you if you give it a shot!")
+
 
 ### EXPLANATIONS ###
 # General function for the explanations of each recommendation performed
@@ -409,17 +429,8 @@ def main():
                 
                 st.markdown(
                     """
-                    ### Non personalized recommendations
-                    blabla bla
-
-                    ##### Popularity among all members
-                    blablabla
-
-                    ##### Consider all group member preferences
-                    blablabla
-
-                    ##### Choose a criteria to do the recommendations
-                    blablabla
+                    ### Non-personalized recommender
+                    Recommends items based on the filtering and order you choose.
                     """
                 )
 
@@ -534,16 +545,16 @@ def main():
                 st.markdown(
                     """
                     ### Group recommendations
-                    blabla bla
+                    Recommends items to a group of users based on different strategies.
 
-                    ##### Popularity among all members
-                    blablabla
+                    ##### All equal
+                    Recommends the most popular items among your group members. 
 
-                    ##### Consider all group member preferences
-                    blablabla
+                    ##### Group preferences
+                    Considers the preferences of all group members.
 
-                    ##### Choose a criteria to do the recommendations
-                    blablabla
+                    ##### Given criteria
+                    Considers only a subset of items, based on user roles or any other relevant criteria.
                     """
                 )
 
