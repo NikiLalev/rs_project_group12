@@ -1,16 +1,18 @@
 import re
+import ast
 import pandas as pd
 import streamlit as st
 from streamlit_option_menu import option_menu
-# import streamlit_vertical_slider as svs
-from streamlit_star_rating import st_star_rating
 import streamlit_toggle as sts
-# from star_ratings import star_ratings
 
 
 # Extract wine data
-ratings_data = pd.read_csv("C:\\Users\\mirei\\OneDrive\\Escritorio\\project\\XWines_Slim_150K_ratings.csv", low_memory=False)
-wine_data = pd.read_csv("C:\\Users\\mirei\\OneDrive\\Escritorio\\project\\XWines_Slim_1K_wines.csv")
+ratings_data = pd.read_csv("dataset\\XWines_Slim_150K_ratings.csv", low_memory=False)
+wine_data = pd.read_csv("dataset\\XWines_Slim_1K_wines.csv")
+# wine_data['Harmonize'] = list(wine_data['Harmonize'].apply(eval))
+# wine_data['Grapes'] = wine_data['Grapes'].apply(ast.literal_eval)
+wine_data['Grapes'] = wine_data['Grapes'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
+wine_data['Harmonize'] = wine_data['Harmonize'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
 full = pd.merge(ratings_data, wine_data, on ='WineID')
 
 def extract_string(sentence):
@@ -20,10 +22,18 @@ def extract_string(sentence):
 
 ### NON-PERSONALIZED RECOMMENDATION ###
 # Function to recommend a wine based on user preferences
-def recommend_wine(selected_type, selected_body, selected_acidity, selected_country, min_ratings, num_recs, order):
+def recommend_wine(selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs, order):
     # Filter
     filtered_df = full[
-        (full['Type'].isin(selected_type)) & (full['Body'].isin(selected_body)) & (full['Acidity'].isin(selected_acidity)) & (full['Country'].isin(selected_country))    
+        (full['Type'].isin(selected_type)) &
+        (full['Body'].isin(selected_body)) &
+        (full['Acidity'].isin(selected_acidity)) &
+        (full['Country'].isin(selected_country)) &
+        (full['RegionName'].isin(selected_region)) &
+        (full['Grapes'].apply(lambda x: any(grape in selected_grapes for grape in x))) &
+        (full['ABV'].between(selected_ABV[0], selected_ABV[1])) &
+        (full['Elaborate'].isin(selected_elaborate)) &
+        (full['Harmonize'].apply(lambda x: any(harm in selected_harmonize for harm in x)))
     ]
 
     filtered_df['numRatings'] = filtered_df.groupby('WineID')['Rating'].transform('count')
@@ -31,7 +41,7 @@ def recommend_wine(selected_type, selected_body, selected_acidity, selected_coun
     return sorted_df.drop_duplicates(subset=['WineID']).sort_values(by=order, ascending=False).head(num_recs)    
 
 
-def display_wines(sorted_df):
+def display_wines(sorted_df, num_recs):
     # Check if the dataframe is empty
     if sorted_df.empty:
         st.write("No wine(s) found matching your preferences. Please try with other filters.")
@@ -91,6 +101,8 @@ def display_wines(sorted_df):
         }
         
         display_wine(cols[idx % num_cols], wine_data)
+    if len(sorted_df) < num_recs:
+        st.write(f"Sorry, there are not {num_recs} wines with your preferences, just the {len(sorted_df)} provided. You can try with another combination.")
     return
 
 
@@ -249,55 +261,18 @@ def feedback():
     st.write("")
     st.divider()
     st.write("")
-    # stars = st_star_rating("Please rate you experience", maxValue=5, defaultValue=0, size=15)
-    # st.write(stars)
-    # if stars != 0:
-    #         st.markdown(f"You selected {stars} star(s). Thank you so much for your feedback!")
-
     sentiment_mapping = ["one", "two", "three", "four", "five"]
     st.subheader("Please rate you experience")
     selected = st.feedback("stars")
     if selected is not None:
         st.markdown(f"You selected {sentiment_mapping[selected]} star(s). Thank you so much for your feedback!")
 
-### FILTERING OPTIONS FOR INDIVIDUAL RECOMMENDATION###
-# Function to allow the user to filter out some wine features
-def options_indiv(num_cols):
-    cols = st.columns((num_cols))
-
-    if num_cols != 1:
-        selected_type = cols[0].multiselect('Wine type(s)', wine_data['Type'].unique(), default=None)
-        selected_body = cols[1].multiselect('Wine body(s)', wine_data['Body'].unique(), default=None)
-        selected_acidity = cols[2].multiselect('Acidity level(s)', wine_data['Acidity'].unique(), default=None)
-        selected_country = cols[3].multiselect('Country(ies) of production', wine_data['Country'].unique(), default=None)
-        min_ratings = cols[4].slider(f"Minimun number of ratings", 1, 1000, value = 1, step = 1)
-
-    else: # cols == 0
-        selected_type = cols[0].multiselect('Select wine type(s)', wine_data['Type'].unique(), default=None)
-        selected_body = cols[0].multiselect('Select wine body(s)', wine_data['Body'].unique(), default=None)
-        selected_acidity = cols[0].multiselect('Select acidity level(s)', wine_data['Acidity'].unique(), default=None)
-        selected_country = cols[0].multiselect('Select country(ies) of production', wine_data['Country'].unique(), default=None)
-        st.write("")
-        min_ratings = cols[0].slider(f"Minimun number of ratings", 1, 1000, value = 1, step = 1)
-
-    # If no selection is made by the user, use all types 
-    if not selected_type:
-        selected_type = wine_data['Type'].unique()  
-    if not selected_body:
-        selected_body = wine_data['Body'].unique()  
-    if not selected_acidity:
-        selected_acidity = wine_data['Acidity'].unique()  
-    if not selected_country:
-        selected_country = wine_data['Country'].unique()
-
-    return selected_type, selected_body, selected_acidity, selected_country, min_ratings
-
 ### FILTERING OPTIONS ###
 # Function to allow the user to filter out some wine features
 def options(num_cols, num_group):
     cols = st.columns((num_cols))
 
-    if num_cols != 1:
+    if num_cols != 2:
         selected_type = cols[0].multiselect('Wine type(s)', wine_data['Type'].unique(), default=None)
         selected_body = cols[1].multiselect('Wine body(s)', wine_data['Body'].unique(), default=None)
         selected_acidity = cols[2].multiselect('Acidity level(s)', wine_data['Acidity'].unique(), default=None)
@@ -305,24 +280,49 @@ def options(num_cols, num_group):
         min_ratings = cols[4].slider(f"Minimun number of ratings", 1, num_group, value = 1, step = 1)
 
     else: # cols == 0
-        selected_type = cols[0].multiselect('Select wine type(s)', wine_data['Type'].unique(), default=None)
-        selected_body = cols[0].multiselect('Select wine body(s)', wine_data['Body'].unique(), default=None)
-        selected_acidity = cols[0].multiselect('Select acidity level(s)', wine_data['Acidity'].unique(), default=None)
-        selected_country = cols[0].multiselect('Select country(ies) of production', wine_data['Country'].unique(), default=None)
-        st.write("")
-        min_ratings = cols[0].slider(f"Minimun number of ratings", 1, 500, value = 1, step = 1)
+        selected_type = cols[0].multiselect('Select wine type(s)', sorted(list(wine_data['Type'].unique())), default=None)
+        selected_body = cols[1].multiselect('Select wine body(s)', sorted(list(wine_data['Body'].unique())), default=None)
+        cols[0].write("")
+        cols[1].write("")
 
-    # If no selection is made by the user, use all types 
-    if not selected_type:
-        selected_type = wine_data['Type'].unique()  
-    if not selected_body:
-        selected_body = wine_data['Body'].unique()  
-    if not selected_acidity:
-        selected_acidity = wine_data['Acidity'].unique()  
-    if not selected_country:
-        selected_country = wine_data['Country'].unique()
+        selected_acidity = cols[0].multiselect('Select acidity level(s)', sorted(list(wine_data['Acidity'].unique())), default=None)
+        selected_elaborate = cols[1].multiselect('Select type(s) of elaboration', sorted(list(wine_data['Elaborate'].unique())), default=None)
+        cols[0].write("")
+        cols[1].markdown("####")
 
-    return selected_type, selected_body, selected_acidity, selected_country, min_ratings
+        cols[0].markdown("###### Alcohol")
+        selected_grapes = cols[0].multiselect('Select grape(s) type', sorted(set([item for sublist in wine_data['Grapes'].dropna() for item in sublist])), default=None)
+        selected_ABV = cols[1].slider('Select wine ABV', min(wine_data['ABV'].unique()), max(wine_data['ABV'].unique()), (min(wine_data['ABV'].unique()), max(wine_data['ABV'].unique())))
+        cols[0].write("")
+        cols[1].markdown("######")
+
+        cols[0].markdown("###### Location")
+        selected_country = cols[0].multiselect('Select country(ies) of production', sorted(list(wine_data['Country'].unique())), default=None)
+        if selected_country:
+            selected_region = cols[1].multiselect('Select region(s) of production', sorted(list(wine_data[wine_data['Country'].isin(selected_country)]['RegionName'].unique())), default=None)
+        cols[0].write("")
+        cols[1].markdown("######")
+
+        cols[0].markdown("###### In combination with...")
+        selected_harmonize = cols[0].multiselect('Select harmonize(s)', sorted(set([item for sublist in wine_data['Harmonize'].dropna() for item in sublist])), default=None)
+
+        st.markdown("######")    
+        num_recs = st.slider(f"Number of recommendations", 1, 20, value = 1, step = 1)
+        min_ratings = st.slider(f"Minimun number of ratings", 1, 500, value = 1, step = 1)
+
+    # Default values if nothing is selected
+    selected_type = selected_type or wine_data['Type'].unique()
+    selected_body = selected_body or wine_data['Body'].unique()
+    selected_acidity = selected_acidity or wine_data['Acidity'].unique()
+    selected_region = (selected_region or wine_data[wine_data['Country'].isin(selected_country)]['RegionName'].unique()) if selected_country else wine_data['RegionName'].unique()
+    selected_country = selected_country or wine_data['Country'].unique()
+    selected_elaborate = selected_elaborate or wine_data['Elaborate'].unique()
+    selected_grapes = selected_grapes or set([item for sublist in wine_data['Grapes'] for item in sublist])
+    selected_ABV = selected_ABV or wine_data['ABV'].unique()
+    selected_harmonize = selected_harmonize or set([item for sublist in wine_data['Harmonize'] for item in sublist])
+
+    return selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs
+
 
 ### INDIVIDUAL CF OPTIONS ###
 # Function to allow the user to specify some options regarding the CF recommendations
@@ -424,14 +424,14 @@ def main():
                 )
 
             st.divider()
-            st.session_state.recommend_wine_clicked = False
             
-            col1, col2, col3 = st.columns([1,0.25,4])
+            col1, col2, col3 = st.columns([2.1,0.1,4.1])
 
             with col1:
-                num_recs = st.slider(f"Number of recommendations", 1, 20, value = 1, step = 1)
-                selected_type, selected_body, selected_acidity, selected_country, min_ratings = options(num_cols=1, num_group=1)
-                st.markdown('##')
+                with st.container(border=True):
+                    st.markdown("#### Choose your preferences")
+                    selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs = options(num_cols=2, num_group=1)
+                st.markdown('####')
 
                 # Store the flag in session state that the button was pressed
                 if st.button("Recommend Wine(s)"):
@@ -450,11 +450,12 @@ def main():
 
                 # Only display the wines after "Recommend Wine" is pressed
                 if st.session_state.get('recommend_wine_clicked', False):
-                    sorted_df = recommend_wine(selected_type, selected_body, selected_acidity, selected_country, min_ratings, num_recs, order)
-                    display_wines(sorted_df)
-
-                    st.markdown("#")
-                    explanation(st.session_state.page, "Non-personalized", "", "", "", sorted_df)
+                    sorted_df = recommend_wine(selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs, order)
+                    display_wines(sorted_df, num_recs)
+            
+            if st.session_state.get('recommend_wine_clicked', False):
+                st.markdown("###")
+                explanation(st.session_state.page, "Non-personalized", "", "", "", sorted_df)
 
             feedback()               
 
@@ -514,7 +515,7 @@ def main():
                     rec_subtype_indiv = generic_options_indiv(recs_indiv)
                 
                 with st.expander("**Add additional filters**", expanded=False):
-                    selected_type, selected_body, selected_acidity, selected_country, min_ratings = options_indiv(num_cols=5)
+                    selected_type, selected_body, selected_acidity, selected_country, min_ratings = options(num_cols=5, num_group=500)
 
             feedback() 
 
@@ -584,7 +585,7 @@ def main():
                 st.title("List of Recommended Wines")
 
                 sorted_df = recommend_wine_for_group(rec_type, rec_subtype, recs, group, threshold, impo_person, selected_type, selected_body, selected_acidity, selected_country, min_ratings, num_recs)
-                display_wines(sorted_df)
+                display_wines(sorted_df, num_recs)
                 st.markdown("#")
                 explanation(st.session_state.page, rec_type, rec_subtype, group, threshold, sorted_df)
 
