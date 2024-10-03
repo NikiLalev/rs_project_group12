@@ -5,10 +5,12 @@ from streamlit_option_menu import option_menu
 # import streamlit_vertical_slider as svs
 from streamlit_star_rating import st_star_rating
 import streamlit_toggle as sts
-from star_ratings import star_ratings
+# from star_ratings import star_ratings
 
 
 # Extract wine data
+ratings_data = pd.read_csv("C:\\Users\\mirei\\OneDrive\\Escritorio\\project\\XWines_Slim_150K_ratings.csv", low_memory=False)
+wine_data = pd.read_csv("C:\\Users\\mirei\\OneDrive\\Escritorio\\project\\XWines_Slim_1K_wines.csv")
 full = pd.merge(ratings_data, wine_data, on ='WineID')
 
 def extract_string(sentence):
@@ -205,6 +207,41 @@ def explanation(rec, rec_type, rec_subtype, group, threshold, sorted_df):
         
         And, please, do not forget to rate your experience with the service! See you soon.
         ''')
+    
+    people = "the group" if rec == 'recommend_group' else "your"
+    st.write("")
+    with st.container(border=True):
+        cols = st.columns([2,2,3,2])
+
+        with cols[0]:
+            sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
+            st.markdown("###### Did you find this explanation useful?")
+            ex_satisfaction = st.feedback("thumbs", key="satisfaction")
+            if ex_satisfaction is not None:
+                st.markdown(f"You selected: {sentiment_mapping[ex_satisfaction]}. Thanks!")
+
+        with cols[1]:
+            sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
+            st.markdown(f"###### Does this explanation meet {people} requirements?")
+            ex_effectiveness = st.feedback("thumbs", key="effectiveness")
+            if ex_effectiveness is not None:
+                st.markdown(f"You selected: {sentiment_mapping[ex_effectiveness]}. Thanks!")
+
+        with cols[2]:
+            st.markdown(f"###### Rate your individual satisfaction with the recommendation")
+            c1, c12, c2 = st.columns([1,0.2,2.5], vertical_alignment="center")
+            member = c1.selectbox("**Who are you?**", options=group)
+            sentiment_mapping = ["one", "two", "three", "four", "five"]
+            ex_fairness = c2.feedback("stars", key="fairness")
+            if ex_fairness is not None:
+                c2.markdown(f"You selected: {sentiment_mapping[ex_fairness]} star(s). Thanks {member}!")
+        
+        with cols[3]:
+            sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
+            st.markdown("###### After the explanation, are you willing to give this wine a chance?")
+            ex_persuasiveness = st.feedback("thumbs", key="persuasiveness")
+            if ex_persuasiveness is not None:
+                st.markdown(f"You selected: {sentiment_mapping[ex_persuasiveness]}. Thanks!")
 
 
 ### STORE USER FEEDBACK ###
@@ -212,11 +249,48 @@ def feedback():
     st.write("")
     st.divider()
     st.write("")
-    stars = st_star_rating("Please rate you experience", maxValue=5, defaultValue=0, size=15)
-    st.write(stars)
-    if stars != 0:
-            st.markdown(f"You selected {stars} star(s). Thank you so much for your feedback!")
+    # stars = st_star_rating("Please rate you experience", maxValue=5, defaultValue=0, size=15)
+    # st.write(stars)
+    # if stars != 0:
+    #         st.markdown(f"You selected {stars} star(s). Thank you so much for your feedback!")
 
+    sentiment_mapping = ["one", "two", "three", "four", "five"]
+    st.subheader("Please rate you experience")
+    selected = st.feedback("stars")
+    if selected is not None:
+        st.markdown(f"You selected {sentiment_mapping[selected]} star(s). Thank you so much for your feedback!")
+
+### FILTERING OPTIONS FOR INDIVIDUAL RECOMMENDATION###
+# Function to allow the user to filter out some wine features
+def options_indiv(num_cols):
+    cols = st.columns((num_cols))
+
+    if num_cols != 1:
+        selected_type = cols[0].multiselect('Wine type(s)', wine_data['Type'].unique(), default=None)
+        selected_body = cols[1].multiselect('Wine body(s)', wine_data['Body'].unique(), default=None)
+        selected_acidity = cols[2].multiselect('Acidity level(s)', wine_data['Acidity'].unique(), default=None)
+        selected_country = cols[3].multiselect('Country(ies) of production', wine_data['Country'].unique(), default=None)
+        min_ratings = cols[4].slider(f"Minimun number of ratings", 1, 1000, value = 1, step = 1)
+
+    else: # cols == 0
+        selected_type = cols[0].multiselect('Select wine type(s)', wine_data['Type'].unique(), default=None)
+        selected_body = cols[0].multiselect('Select wine body(s)', wine_data['Body'].unique(), default=None)
+        selected_acidity = cols[0].multiselect('Select acidity level(s)', wine_data['Acidity'].unique(), default=None)
+        selected_country = cols[0].multiselect('Select country(ies) of production', wine_data['Country'].unique(), default=None)
+        st.write("")
+        min_ratings = cols[0].slider(f"Minimun number of ratings", 1, 1000, value = 1, step = 1)
+
+    # If no selection is made by the user, use all types 
+    if not selected_type:
+        selected_type = wine_data['Type'].unique()  
+    if not selected_body:
+        selected_body = wine_data['Body'].unique()  
+    if not selected_acidity:
+        selected_acidity = wine_data['Acidity'].unique()  
+    if not selected_country:
+        selected_country = wine_data['Country'].unique()
+
+    return selected_type, selected_body, selected_acidity, selected_country, min_ratings
 
 ### FILTERING OPTIONS ###
 # Function to allow the user to filter out some wine features
@@ -250,6 +324,14 @@ def options(num_cols, num_group):
 
     return selected_type, selected_body, selected_acidity, selected_country, min_ratings
 
+### INDIVIDUAL CF OPTIONS ###
+# Function to allow the user to specify some options regarding the CF recommendations
+def generic_options_indiv(recs_indiv):
+    cols = st.columns((3))
+    rec_type_indiv = cols[0].radio("How do you wanna deal with the recommendations?", recs_indiv)
+
+    return rec_type_indiv
+
 
 ### GROUP OPTIONS ###
 # Function to allow the user to specify some options regarding the group recommendations
@@ -261,7 +343,7 @@ def generic_options(recs):
     num_people = cols[1].slider(f"Number of people within the group", 2, 20, value = 2, step = 1)  
     
     st.write("")      
-    group = cols[2].multiselect("Who are with?", ratings_data['UserID'].unique(), max_selections=num_people)
+    group = cols[2].multiselect("Select the members of the group", ratings_data['UserID'].unique(), max_selections=num_people)
     
     impo_person = cols[2].selectbox('Select the most important person in the group:', group) if rec_type =='Consider the **:violet[opinion of the most respected person]** within the group.' else None
     threshold = cols[2].slider(f"Select the minimum rating to be taken into account", 1.0, 5.0, value = 1.0, step = 0.5) if rec_type =='**:violet[Average]** individual ratings **:violet[higher than a threshold]**.' else 1.0
@@ -372,32 +454,50 @@ def main():
                     display_wines(sorted_df)
 
                     st.markdown("#")
-                    explanation(st.session_state.page, "Non-personalized", "", "", threshold, sorted_df)
+                    explanation(st.session_state.page, "Non-personalized", "", "", "", sorted_df)
 
             feedback()               
 
         ####### INDIVIDUAL RECOMMENDER PAGE #######
         elif st.session_state.page == 'recommend_individual':
             st.title("MY RECOMMENDATIONS")
-            st.write("Select your wine preferences to get a personalized recommendation.")
+            c0, c1, c2, c3 = st.columns([0.5, 1.5, 5, 0.5])
+            c1.image("https://cdn.iconscout.com/icon/free/png-256/free-person-icon-download-in-svg-png-gif-file-formats--user-profile-account-avatar-interface-pack-icons-1502146.png", width=100)
+            c2.write("Select your preferences to get a personalized recommendation.")
+            with c2.expander("ℹ️ General instructions", expanded=False):
+                st.write("Here you will have some information about how to use the following features")
+                
+                st.markdown(
+                    """
+                    ### Individual recommendations
+                    Personalized suggestions tailored to your preferences based on past interactions and similar users.
+
+                    ##### Similar to my past liked items
+                    Recommendation of items that are similar to those you’ve previously liked, using item features and interactions.
+
+                    ##### Users similar to me
+                    Recommendation of items based on the preferences and interactions of users with similar tastes to yours.
+
+                    ##### Based on item interaction
+                    Recommendation of items that are similar to those you’ve engaged with based on how other users interacted with them.
+
+                    ##### Based on user interaction
+                    Recommendation of items that users with similar preferences to you have liked or interacted with.
+                    """
+                )
+
             st.divider()
-            
-            col1, col2, col3 = st.columns([2,0.25,4])
+            st.session_state.recommend_wine_clicked = False
+            col1, col2, col3 = st.columns([2,0.1,6])
 
             with col1:
-                num_recs = st.slider(f"Number of recommendations", 1, 20, value = 1, step = 1)
-
-                rec_method = st.selectbox('Select recommedation method type', ['My choices', 'Similar to me', 'Find similar'])
-
-                if rec_method=='Find similar':
-                    name_like = st.text_input("Recommend wines like:", 'Name starts like...')
-                elif rec_method == 'Similar to me':
-                    user_options = ['Choose/Rechoose', 'Test-users', 'New user', 'Log in']
-                    radio_options = st.empty()
-                    user_option = radio_options.radio('Logged as', user_options,  0)
-                else:
-                    st.write("NAH!")
-
+                with st.container(border=True):
+                    st.markdown("#### Which type of recommendations would you prefer?")
+                    rec_type_indiv = st.radio("Select:", options=["Similar to my past liked items", "Users similar to me"])
+                    st.write("")
+                    num_recs = st.slider(f"Number of recommendations", 1, 20, value = 1, step = 1)        
+                    st.write("")
+                
                 if st.button("Recommend Wine(s)"):
                     st.session_state.recommend_wine_clicked = True
                 if st.button("Back Home"):
@@ -405,9 +505,16 @@ def main():
                     st.session_state.recommend_wine_clicked = False
             
 
-            with col3:
-                st.write("hey i'm not") 
-                # explanation(st.session_state.page, )
+            with col3: 
+                st.title(rec_type_indiv.upper())
+                recs_indiv = []
+                if rec_type_indiv == "Users similar to me":  
+                    recs_indiv = ['Based on **:violet[item interaction]**.', 'Based on **:violet[user interaction]**.']
+                    st.write("")
+                    rec_subtype_indiv = generic_options_indiv(recs_indiv)
+                
+                with st.expander("**Add additional filters**", expanded=False):
+                    selected_type, selected_body, selected_acidity, selected_country, min_ratings = options_indiv(num_cols=5)
 
             feedback() 
 
@@ -466,7 +573,7 @@ def main():
                 else: # rec_type == "Given criteria"
                     recs = [' Ensure that **:violet[no one is dissatisfied]**.', 'Ensure that the **:violet[majority is satisfied]**.', 'Consider the **:violet[opinion of the most respected person]** within the group.']
                 
-                st.title(rec_type)
+                st.title(rec_type.upper())
                 rec_subtype, num_people, group, impo_person, threshold = generic_options(recs)
                 
                 with st.expander("**Add additional filters**", expanded=False):
