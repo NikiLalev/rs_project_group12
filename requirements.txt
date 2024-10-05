@@ -1,0 +1,14 @@
+os
+re
+ast
+pickle
+scipy
+numba
+lenskit
+langchain
+langchain-community
+streamlit
+streamlit-option-menu
+streamlit-toggle
+numpy
+scikit-learn
