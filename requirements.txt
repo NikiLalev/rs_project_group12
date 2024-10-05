@@ -1,6 +1,7 @@
 os
 re
 ast
+pandas==2.0.3
 pickle
 scipy
 numba
