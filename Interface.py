@@ -565,7 +565,7 @@ def options(num_cols, num_group, num_recom):
 ### INDIVIDUAL CF OPTIONS ###
 # Function to allow the user to specify some options regarding the CF recommendations
 def generic_options_indiv(): 
-    recs_indiv = ['Based on **:violet[item interaction]**.', 'Based on **:violet[user interaction]**.']
+    recs_indiv = ['Based on **:violet[user interaction]**.', 'Based on **:violet[item interaction]**.']
     st.write("")
     cols = st.columns((3))
     rec_type_indiv = cols[0].radio("How do you wanna deal with the recommendations?", recs_indiv)
