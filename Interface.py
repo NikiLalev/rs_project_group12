@@ -304,10 +304,10 @@ def save_feedback(feedback_data, csv_path):
 
 ### EXPLANATIONS FEEDBACK ###
 # Function to store the user's feedback on the given recommendation explanation
-def feedback_explanation(rec, rec_type, rec_subtype, group, wine_info, clicked):
+def feedback_explanation(rec, rec_type, rec_subtype, group, current_user, wine_info, clicked):
     sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
     stars_mapping = ["1", "2", "3", "4", "5"]
-
+    st.write(clicked)
     people = "the group" if rec == 'recommend_group' else "your"
     
     if rec == 'recommend_group':
@@ -363,14 +363,14 @@ def feedback_explanation(rec, rec_type, rec_subtype, group, wine_info, clicked):
     # Save feedback when 'submit' button has been selected
     if expl_feed: # all([ex_satisfaction is not None, ex_effectiveness is not None, ex_fairness is not None, ex_persuasiveness is not None]):
         feedback_data = {
-            'UserID': "" if rec == "try_new" else (group if rec == 'recommend_group' else wine_info['UserID']),
+            'UserID': "" if rec == "try_new" else (group if rec == 'recommend_group' else current_user),
             'WineID': wine_info['WineID'],
             'RecSys': (rec).split("_")[-1],
             'RecSysType': (rec_type).lower(),
             'RecSysSubtype': (extract_string(rec_subtype)).split("[")[-1].removesuffix("]"),
             'Satisfaction': (sentiment_mapping[ex_satisfaction]).split("/")[-1].removesuffix(":"),
             'Effectiveness': (sentiment_mapping[ex_effectiveness]).split("/")[-1].removesuffix(":"),
-            'Fairness': "" if rec == "try_new" else (current_fairness_dict if rec == 'recommend_group' else sentiment_mapping[ex_fairness]), 
+            'Fairness': current_fairness_dict if rec == 'recommend_group' else "", 
             'Persuasiveness': (sentiment_mapping[ex_persuasiveness]).split("/")[-1].removesuffix(":"),
             'Persuasiveness_link': clicked
         }
@@ -379,12 +379,15 @@ def feedback_explanation(rec, rec_type, rec_subtype, group, wine_info, clicked):
         if st.session_state['feedback_submitted']:
             st.write("")
             st.success("Thanks for your feedback on the explanation!")
+
+            # Set flag to allow reset in next call
+            st.session_state.reset_clicked = True
             return  # Exit the function so no further feedback options are displayed
     
 
 ### EXPLANATIONS ###
 # General function for the explanations of each recommendation performed
-def explanation(rec, rec_type, rec_subtype, group, threshold, sorted_df, order):
+def explanation(rec, rec_type, rec_subtype, group, current_user, threshold, sorted_df, order):
     st.header("**Why this recommendation?**")
     wine_info = wine_data[wine_data['WineID'] == sorted_df['WineID'].iloc[0]].iloc[0]
     
@@ -401,6 +404,11 @@ def explanation(rec, rec_type, rec_subtype, group, threshold, sorted_df, order):
     else: 
         explanation = personalized_grupal(rec_type, rec_subtype, group, threshold)
     
+    # Reset 'clicked' state every time the function is called
+    if 'clicked' not in st.session_state or st.session_state.reset_clicked:
+        st.session_state.clicked = "No"
+        st.session_state.reset_clicked = False  # To prevent further resets within the same function call
+
     st.markdown(
         f'''
         The recommendation according the features provided is **:violet[{sorted_df.iloc[0]["WineName"]}]**'s wine.
@@ -411,9 +419,8 @@ def explanation(rec, rec_type, rec_subtype, group, threshold, sorted_df, order):
 
         A delightful companion to **{harmonize}**, this wine will elevate any meal with its balanced flavors. It is produced by ***{wine_info["WineryName"]}*** winery, located in **{wine_info["RegionName"]}**, **{wine_info["Country"]}** (access their website for further information).
         ''')
+    
     winery_website = st.button("Visit Winery Website")
-    st.session_state.clicked = "No"
-
     if winery_website:
         webbrowser.open_new_tab(wine_info['Website'])
         st.session_state.clicked = "Yes"
@@ -424,14 +431,15 @@ def explanation(rec, rec_type, rec_subtype, group, threshold, sorted_df, order):
         And, please, do not forget to rate your experience with the service! See you soon.
         ''')
     
+    st.write(st.session_state.clicked)
     new_folder_path = os.path.join(os.getcwd(), "feedback")
     if not os.path.exists(new_folder_path):
         os.makedirs(new_folder_path)
-    feedback_explanation(rec, rec_type, rec_subtype, group, wine_info, st.session_state.clicked)
+    feedback_explanation(rec, rec_type, rec_subtype, group, current_user, wine_info, st.session_state.clicked)
     
 
 ### STORE USER FEEDBACK ###
-def feedback(rec, rec_type, rec_subtype, sorted_df, group, nonpers = False):
+def feedback(rec, rec_type, rec_subtype, sorted_df, group, current_user, nonpers = False):
     sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
     stars_mapping = ["1", "2", "3", "4", "5"]
     wine_info = wine_data[wine_data['WineID'] == sorted_df['WineID']].iloc[0]
@@ -486,7 +494,7 @@ def feedback(rec, rec_type, rec_subtype, sorted_df, group, nonpers = False):
     # Save feedback when 'submit' button has been selected
     if rec_feed:
         recommendation_feedback_data = {
-            'UserID': "" if rec == "try_new" else (group if rec == 'recommend_group' else wine_info['UserID']),
+            'UserID': "" if rec == "try_new" else (group if rec == 'recommend_group' else current_user),
             'WineID': wine_info['WineID'],
             'RecSys': (rec).split("_")[-1],
             'RecSysType': (rec_type).lower(),
@@ -702,8 +710,8 @@ def main():
             
             if df_exists and st.session_state.get('recommend_wine_clicked', False):
                 st.markdown("###")
-                explanation(st.session_state.page, "Non-personalized", "", "", "", sorted_df, order)
-                feedback(st.session_state.page, "", "", sorted_df.iloc[0], "", nonpers=True)  
+                explanation(st.session_state.page, "Non-personalized", "", "", "", "", sorted_df, order)
+                feedback(st.session_state.page, "", "", sorted_df.iloc[0], "", "", nonpers=True)  
 
 
         ####### INDIVIDUAL RECOMMENDER PAGE #######
@@ -772,8 +780,8 @@ def main():
                     display_wines(sorted_df, num_recs, nonpers = False)
                     st.markdown("#")
                     if not sorted_df.empty:
-                        explanation(st.session_state.page, rec_type_indiv, rec_subtype_indiv, "", "", sorted_df, "")
-                        feedback(st.session_state.page, rec_type_indiv, rec_subtype_indiv, sorted_df.iloc[0], "") 
+                        explanation(st.session_state.page, rec_type_indiv, rec_subtype_indiv, "", current_user, "", sorted_df, "")
+                        feedback(st.session_state.page, rec_type_indiv, rec_subtype_indiv, sorted_df.iloc[0], "", current_user) 
 
 
         ####### GROUP RECOMMENDER PAGE #######
@@ -846,8 +854,8 @@ def main():
                 display_wines(sorted_df, num_recs, nonpers = False)
                 st.markdown("#")
                 if not sorted_df.empty:
-                    explanation(st.session_state.page, rec_type, rec_subtype, group, threshold, sorted_df, "")
-                    feedback(st.session_state.page, rec_type, rec_subtype, sorted_df.iloc[0], group)
+                    explanation(st.session_state.page, rec_type, rec_subtype, group, "", threshold, sorted_df, "")
+                    feedback(st.session_state.page, rec_type, rec_subtype, sorted_df.iloc[0], group, "")
 
 
 # Run the app
