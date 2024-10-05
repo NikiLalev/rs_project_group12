@@ -10,6 +10,7 @@ import streamlit_toggle as sts
 
 # Import Recommerder Systems
 from Recommender import Recommender
+from aggregators import AggregationStrategy 
 
 
 # Extract wine data
@@ -135,14 +136,8 @@ def recommend_wine_filtered(full, selected_type, selected_body, selected_acidity
 
     # Filter by minimum number of ratings
     sorted_df = filtered_df[filtered_df['numRatings'] >= min_ratings].drop_duplicates(subset=['WineID'])
-
-    # Random ordering
-    if order == 'Random':
-        sorted_df = sorted_df.sample(frac=1, random_state=None)  # Shuffle rows randomly
-
-    else:
-        # Sort based on the selected order
-        sorted_df = sorted_df.sort_values(by=order, ascending=False)
+    if order != "":
+        sorted_df = sorted_df.sample(frac=1, random_state=None) if order == "Random" else sorted_df.sort_values(by=order, ascending=False)
     
     # Return the top num_recs recommendations
     return sorted_df.head(num_recs)
@@ -181,58 +176,47 @@ def recommend_wine_for_user(current_user, rec_type_indiv, rec_subtype_indiv, win
     
     return sorted_df
 
+
 ### GROUP RECOMMENDATION ###
 # Function to recommend wine for a group
-def recommend_wine_for_group(rec_type, rec_subtype, recs, group, threshold, impo_person, selected_type, selected_body, selected_acidity, selected_country, min_ratings, num_recs):
-    filtered_df = full[
-        (full['UserID'].isin(group)) & (full['Rating'] >= threshold) & (full['Type'].isin(selected_type)) & (full['Body'].isin(selected_body)) & 
-        (full['Acidity'].isin(selected_acidity)) & (full['Country'].isin(selected_country))
-    ]
+def recommend_wine_for_group(rec_type, rec_subtype, group, num_recs):
+    individual_recommender = Recommender()
+    individual_recommender.load_model("item-item")
 
-    filtered_df['numRatings'] = filtered_df.groupby('WineID')['Rating'].transform('count')
-    sorted_df = filtered_df[filtered_df['numRatings'] >= min_ratings]
-   
-    if rec_type == "All equal":
-        if rec_subtype == recs[0]:
-            copy_sorted_df = sorted_df.copy()
-            eliminated_wines = []
-            while not copy_sorted_df.empty and len(eliminated_wines) < num_recs:
-                # For each user, find the wine with the maximum rating
-                user_votes = copy_sorted_df.loc[copy_sorted_df.groupby('UserID')['Rating'].idxmax()]
+    indiv_rec = pd.DataFrame()
+    for user in group:
+        user_rec = individual_recommender.recommend(user_id=user, n=num_recs)
+        user_rec['user'] = user
+        indiv_rec = pd.concat([indiv_rec, user_rec])
 
-                # Count the number of votes for each wine
-                vote_counts = user_votes['WineID'].value_counts()
+    indiv_rec.rename(columns={'score': 'rating'}, inplace=True)
+    indiv_rec = indiv_rec[['item', 'user', 'rating']]
 
-                # Identify the wine with the most votes
-                winner = vote_counts.idxmax()
-                eliminated_wines.append(winner)
-                copy_sorted_df = copy_sorted_df[copy_sorted_df['WineID'] != winner]
+    agg = AggregationStrategy.getAggregator("BASE")
+    group_rec = agg.generate_group_recommendations_for_group(indiv_rec, num_recs)
 
-            return sorted_df[sorted_df['WineID'].isin(eliminated_wines)].drop_duplicates(subset=['WineID']).set_index('WineID').loc[eliminated_wines].reset_index()
-
-        else:
-            return sorted_df[sorted_df['Rating'] >= 2.5].drop_duplicates(subset=['WineID']).sort_values(by=['numRatings'], ascending=False).head(num_recs)    
-    
-    elif rec_type == "Group preferences":
-        aggregation = 'prod' if rec_subtype == recs[2] else 'mean'
+    if rec_type == "Majority based": # Plurality Voting
+        group_rec = pd.DataFrame(group_rec['PLU'], columns=['WineID'])
+        return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID']) 
         
-        grouped_df = sorted_df.groupby('WineID').agg(Rating=('Rating', aggregation)).reset_index()
-        sorted_df = sorted_df.drop(columns=['Rating']).merge(grouped_df, on='WineID')
-        # Sort by average rating in decreasing order
-        sorted_df = sorted_df.sort_values(by='Rating', ascending=False)
-        return sorted_df.filter(items=['WineName', 'Rating', 'numRatings', 'WineryName', 'RegionName', 'Country', 'Website', 'WineID']).drop_duplicates().head(num_recs)    
+    elif rec_type == "Consensus based":
+        if rec_subtype == '**:violet[Add all]** individual ratings.': # Additive
+            group_rec = pd.DataFrame(group_rec['ADD'], columns=['WineID'])
+            return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID']) 
+        
+        else: # Multiplicative
+            group_rec = pd.DataFrame(group_rec['MUL'], columns=['WineID'])
+            return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID'])
 
     else: # rec_type == "Given criteria"
-        if rec_subtype == recs[2]:
-            dictator_df = sorted_df[sorted_df['UserID'] == impo_person]
-            return dictator_df.sort_values(by='Rating', ascending=False).drop_duplicates().head(num_recs)
-        else: 
-            aggregation = 'min' if rec_subtype == recs[0] else 'max'
-            grouped_df = sorted_df.groupby('WineID').agg(Rating=('Rating', aggregation)).reset_index()
-            sorted_df = sorted_df.drop(columns=['Rating']).merge(grouped_df, on='WineID')
-            sorted_df = sorted_df.sort_values(by='Rating', ascending=False)
-            return sorted_df.filter(items=['WineName', 'Rating', 'numRatings', 'WineryName', 'RegionName', 'Country', 'Website', 'WineID']).drop_duplicates().head(num_recs)    
+        if rec_subtype == ' Ensure that **:violet[no one is dissatisfied]**.': # Least Misery
+            group_rec = pd.DataFrame(group_rec['LMS'], columns=['WineID'])
+            return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID'])
 
+        else: # Most Pleasure
+            group_rec = pd.DataFrame(group_rec['MPL'], columns=['WineID'])
+            return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID'])
+ 
 
 ### GROUP RECOMMENDATION EXPLANATIONS ###
 # Function to explain the recommended wine for a group
@@ -774,7 +758,7 @@ def main():
                 if st.session_state.get('recommend_wine_clicked', False):
                     st.title("List of Recommended Wines")
 
-                    sorted_df = recommend_wine_for_user(current_user, rec_type_indiv, rec_subtype_indiv, wine_data, num_recs)
+                    sorted_df = recommend_wine_for_user(current_user, rec_type_indiv, rec_subtype_indiv, wine_data, 100)
                     sorted_df = recommend_wine_filtered(sorted_df, selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs, 'Rating')
 
                     display_wines(sorted_df, num_recs, nonpers = False)
@@ -850,7 +834,9 @@ def main():
             if st.session_state.get('recommend_wine_clicked', False):
                 st.title("List of Recommended Wines")
 
-                sorted_df = recommend_wine_for_group(rec_type, rec_subtype, recs, group, threshold, impo_person, selected_type, selected_body, selected_acidity, selected_country, min_ratings, num_recs)
+                sorted_df = recommend_wine_for_group(rec_type, rec_subtype, group, 100)
+                sorted_df.rename(columns={'rating': 'Rating'}, inplace=True)
+                sorted_df = recommend_wine_filtered(sorted_df, selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs, "")
                 display_wines(sorted_df, num_recs, nonpers = False)
                 st.markdown("#")
                 if not sorted_df.empty:
