@@ -36,7 +36,7 @@ class RecommenderStrategy(ABC):
 class UserUserRecommender(RecommenderStrategy):
     """User-User collaborative filtering recommender strategy."""
 
-    def recommend(self, user_id: int, n: int) -> List[Tuple[int, float]]:
+    def recommend(self, user_id: int, n: int) -> pd.DataFrame:
         return self.model.recommend(user_id, n)
     
     def predict(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -45,7 +45,7 @@ class UserUserRecommender(RecommenderStrategy):
 class ItemItemRecommender(RecommenderStrategy):
     """Item-Item collaborative filtering recommender strategy."""
 
-    def recommend(self, user_id: int, n: int) -> List[Tuple[int, float]]:
+    def recommend(self, user_id: int, n: int) -> pd.DataFrame:
         return self.model.recommend(user_id, n)
     
     def predict(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -119,7 +119,7 @@ class Recommender:
                 logging.info(f"Model {model_type} loaded successfully.")
         self.current_strategy = self.create_strategy(model_type)
 
-    def recommend(self, user_id: int, n: int) -> List[Tuple[int, float]]:
+    def recommend(self, user_id: int, n: int) -> pd.DataFrame:
         """
         Generate recommendations for a user.
 
@@ -128,7 +128,7 @@ class Recommender:
             n (int): The number of recommendations to generate.
 
         Returns:
-            List[Tuple[int, float]]: A list of tuples, each containing an item ID and its score.
+            pd.DataFrame: each containing an item ID and its score.
 
         Raises:
             ValueError: If no model has been loaded.
@@ -136,6 +136,33 @@ class Recommender:
         if self.current_strategy is None:
             raise ValueError("No model loaded. Call load_model first.")
         return self.current_strategy.recommend(user_id, n)
+    
+    def group_recommend(self, user_ids: List[int], n: int) -> pd.DataFrame:
+        """
+        Generate recommendations for a group of users.
+
+        Args:
+            user_ids (List[int]): The list of user IDs to recommend for.
+            n (int): The number of recommendations to generate for each user.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing recommendations for all users,
+                          with columns 'user', 'item', and 'score'.
+
+        Raises:
+            ValueError: If no model has been loaded.
+        """
+        if self.current_strategy is None:
+            raise ValueError("No model loaded. Call load_model first.")
+
+        all_recommendations = []
+        for user_id in user_ids:
+            user_recommendations = self.recommend(user_id, n)
+            # Add the user_id column to the recommendations
+            user_recommendations['user'] = user_id
+            all_recommendations.append(user_recommendations)
+
+        return pd.concat(all_recommendations, ignore_index=True)
     
     def predict(self, df: pd.DataFrame) -> pd.DataFrame:
         """
