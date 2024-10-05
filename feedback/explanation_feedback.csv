@@ -1,6 +1,4 @@
-UserID;WineID;RecSys;RecSysType;RecSysSubtype;Satisfaction;Effectiveness;Fairness;Persuasiveness
-[1234563, 1567391, 1256369];179958;group;given criteria;majority is satisfied;two;two;{1234563: 'five', 1567391: 'three', 1256369: 'four'};two
-[1245122, 1856758, 1239867];179047;group;group preferences;Average all;1;2;{1245122: '4', 1856758: '3', 1239867: '1'};2
-[1256785, 1034563, 1234318];100046;group;all equal;most preferred alternative;thumb_up:;thumb_up:;{1256785: '3', 1034563: '5', 1234318: '4'};thumb_up:
-[1234563, 1946549, 1087697, 1236608];179012;group;all equal;most preferred alternative;thumb_down;thumb_up;{1234563: '4', 1946549: '1', 1087697: '5', 1236608: '4'};thumb_up
-[1354492, 1456543, 1974756];179545;group;all equal;most preferred alternative;thumb_up;thumb_up;{1354492: '4', 1456543: '5', 1974756: '4'};thumb_up
+UserID;WineID;RecSys;RecSysType;RecSysSubtype;Satisfaction;Effectiveness;Fairness;Persuasiveness;Persuasiveness_link
+1000024;181199;individual;users similar to me;item interaction;thumb_up;thumb_up;;thumb_up;Yes
+[1378680, 1218927, 1997772];100067;group;all equal;most preferred alternative;thumb_up;thumb_up;{1378680: None, 1218927: '5', 1997772: None};thumb_up;Yes
+1989751;112084;individual;users similar to me;item interaction;thumb_up;thumb_up;;thumb_up;Yes
