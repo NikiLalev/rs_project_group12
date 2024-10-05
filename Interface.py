@@ -150,7 +150,7 @@ def recommend_wine_filtered(full, selected_type, selected_body, selected_acidity
 
 ### INDIVIDUAL RECOMMENDATION ###
 # Function to recommend wine for a single user
-def recommend_wine_for_user(current_user, rec_type_indiv, rec_subtype_indiv, num_recs):
+def recommend_wine_for_user(current_user, rec_type_indiv, rec_subtype_indiv, wine_data, num_recs):
 
     # Collaborative Filtering
     if rec_type_indiv == "Users similar to me":
@@ -159,25 +159,26 @@ def recommend_wine_for_user(current_user, rec_type_indiv, rec_subtype_indiv, num
             individual_recommender.load_model("user-user")
         else: # recs_indiv == "Based on **:violet[item interaction]**.""
             individual_recommender.load_model("item-item")
-        
-        return individual_recommender.recommend(user_id=current_user, n=num_recs)
+
+        sorted_df = individual_recommender.recommend(user_id=current_user, n=num_recs)
+        sorted_df.rename(columns={'item': 'WineID', 'score': 'Rating'}, inplace=True)
+        sorted_df = pd.merge(sorted_df, wine_data, on='WineID', how='left') 
 
     # Content-based
     else:
         # Load the user_models dictionary from the pickle file
         with open('experiments\\user_models_slim_trained.pkl', 'rb') as file:
             loaded_user_models = pickle.load(file)
+
         # Retrieve the user data
         user_data = loaded_user_models[current_user]
-        model = user_data['model']
-        rated_wines = user_data['rated_wines']
         predicted_wines = user_data['predicted_wines']
 
-        preds = predicted_wines.head(num_recs)
-        st.write(preds)
-
-        st.write("NOTHING YET")
-        return 
+        sorted_df = predicted_wines.head(num_recs)
+        sorted_df.rename(columns={'item': 'WineID', 'predicted_rating': 'Rating'}, inplace=True)
+        sorted_df = pd.merge(sorted_df, wine_data, on='WineID', how='left') 
+    
+    return sorted_df
 
 ### GROUP RECOMMENDATION ###
 # Function to recommend wine for a group
@@ -743,15 +744,13 @@ def main():
                 if st.session_state.get('recommend_wine_clicked', False):
                     st.title("List of Recommended Wines")
 
-                    sorted_df = recommend_wine_for_user(current_user, rec_type_indiv, rec_subtype_indiv, num_recs)
-                    sorted_df.rename(columns={'item': 'WineID', 'score': 'Rating'}, inplace=True)
-                    sorted_df = pd.merge(sorted_df, wine_data, on='WineID', how='left')
+                    sorted_df = recommend_wine_for_user(current_user, rec_type_indiv, rec_subtype_indiv, wine_data, num_recs)
                     sorted_df = recommend_wine_filtered(sorted_df, selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs, 'Rating')
 
                     display_wines(sorted_df, num_recs, nonpers = False)
                     st.markdown("#")
                     explanation(st.session_state.page, rec_type_indiv, rec_subtype_indiv, "", "", sorted_df)
-                    feedback(st.session_state.page, rec_type, rec_subtype, sorted_df.iloc[0], "") 
+                    feedback(st.session_state.page, rec_type_indiv, rec_subtype_indiv, sorted_df.iloc[0], "") 
 
 
         ####### GROUP RECOMMENDER PAGE #######
