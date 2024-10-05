@@ -12,8 +12,16 @@
 
 To get started with this project, clone the repository and install the required dependencies. Everything is coded using `Python` language.
 
-
 ```bash
 git clone https://github.com/NikiLalev/rs_project_group12.git
 cd rs_project_group12
 pip install -r requirements.txt
+```
+
+## Launch the website
+
+Run the app using the following command and open the provided local URL in your browser to interact with it:
+
+    ```bash
+    python -m streamlit run Interface.py
+    ```
