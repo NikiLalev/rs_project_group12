@@ -22,6 +22,6 @@ pip install -r requirements.txt
 
 Run the app using the following command and open the provided local URL in your browser to interact with it:
 
-    ```bash
-    python -m streamlit run Interface.py
-    ```
+```bash
+python -m streamlit run Interface.py
+```
