@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 import random
 import numpy as np
 
-similar_threshold = 0.5
+similar_threshold = 0.2
 dissimilar_threshold = -0.1
 # shared_ratings = 5
 
