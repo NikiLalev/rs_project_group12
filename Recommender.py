@@ -2,6 +2,7 @@ import pickle
 from abc import ABC, abstractmethod
 from typing import List, Tuple
 import logging
+import pandas as pd
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,12 +37,18 @@ class UserUserRecommender(RecommenderStrategy):
 
     def recommend(self, user_id: int, n: int) -> List[Tuple[int, float]]:
         return self.model.recommend(user_id, n)
+    
+    def predict(self, df: pd.DataFrame) -> pd.DataFrame:
+        return self.model.predict(df)
 
 class ItemItemRecommender(RecommenderStrategy):
     """Item-Item collaborative filtering recommender strategy."""
 
     def recommend(self, user_id: int, n: int) -> List[Tuple[int, float]]:
         return self.model.recommend(user_id, n)
+    
+    def predict(self, df: pd.DataFrame) -> pd.DataFrame:
+        return self.model.predict(df)
 
 class Recommender:
     """Singleton class for managing recommendation models and strategies."""
@@ -123,3 +130,20 @@ class Recommender:
         if self.current_strategy is None:
             raise ValueError("No model loaded. Call load_model first.")
         return self.current_strategy.recommend(user_id, n)
+    
+    def predict(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Predict the ratings for all user-item pairs in the input DataFrame.
+
+        Args:
+            df (pd.DataFrame): A DataFrame with 'user' and 'item' columns.
+        
+        Returns:
+            pd.DataFrame: A DataFrame with 'user', 'item', and 'prediction' columns.
+
+        Raises:
+            ValueError: If no model has been loaded.
+        """
+        if self.current_strategy is None:
+            raise ValueError("No model loaded. Call load_model first.")
+        return self.current_strategy.predict(df)
