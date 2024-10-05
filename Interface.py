@@ -221,48 +221,47 @@ def recommend_wine_for_group(rec_type, rec_subtype, group, num_recs):
 ### GROUP RECOMMENDATION EXPLANATIONS ###
 # Function to explain the recommended wine for a group
 def personalized_grupal(rec_type, rec_subtype, group, threshold):
-    if rec_type == "All equal": 
-        if rec_subtype == "Each member vote for his/her **:violet[most preferred alternative]**.":
-            subexplanation = f" founding out their {extract_string(rec_subtype)}s"
+    if rec_type == "Majority based": 
+        if rec_subtype == "Each member votes for his/her **:violet[most preferred alternative]**.":
+            subexplanation = f" by identifying their {extract_string(rec_subtype)}s"
         else: 
-            subexplanation = f" storing {extract_string(rec_subtype)}, but assuming a threshold of above 2.5 in each rating"
+            subexplanation = f" by storing {extract_string(rec_subtype)} while applying a threshold of above 2.5 for each rating."
     
-    elif rec_type == "Group preferences":
-        if rec_subtype == "**:violet[Average all]** individual ratings.":
-            subexplanation = f", for each wine, averaging all its ratings"
-        elif rec_subtype == "**:violet[Average]** individual ratings **:violet[higher than a threshold]**.":
-            subexplanation = f", for each wine, averaging all its ratings which were higher than {threshold}"
+    elif rec_type == "Consensus based":
+        if rec_subtype == "**:violet[Add all]** individual ratings.":
+            subexplanation = f", calculating the sum of all ratings for each wine."
+        elif rec_subtype == "**:violet[Add]** individual ratings **:violet[higher than a threshold]**.":
+            subexplanation = f", calculating the sum of all ratings for each wine that exceed {threshold}."
         else:
-            subexplanation = f", for each wine, multiplying all its ratings"
+            subexplanation = f", calculating the product of all ratings for each wine."
     
     else: 
         if rec_subtype == "Consider the **:violet[opinion of the most respected person]** within the group.":
-            subexplanation = f""
+            subexplanation = f" considering the perspective of the most respected member."
         else:
             subexplanation = f" ensuring than {extract_string(rec_subtype)} "
             op = "maximum" if rec_subtype == "Ensure that the **:violet[majority is satisfied]**." else "minimum"
             
-            subexplanation += f" by assuming than the group rating is the {op} of the individual ratings"
+            subexplanation += f" by assuming that the group rating reflects the {op} of the individual ratings."
             
-    return (f"This wine has been found as the best suggestion for all the {len(group)} members of the group. "
-            f"Taking into account each user's past ratings and{subexplanation}, this one appeared as the wine with the greatest amount of positive votes among them.")
+    return (f"This wine has been identified as the best choice for all {len(group)} group members. "
+            f"Taking into account each user's previous ratings and{subexplanation}, this wine received the highest number of positive votes among them.")
 
 ### INDIVIDUAL RECOMMENDATION EXPLANATIONS ###
 # Function to explain the recommended wine for a single user
 def personalized_individual(rec_type_indiv, rec_subtype_indiv):
     # Content-based
     if rec_type_indiv == "Similar to my past liked items": 
-        subexplanation = f"it shares key features with wines you've previously rated highly."
+        subexplanation = f"because it shares key features with wines you've previously rated highly."
     
     else: 
         # CF item-item
         if rec_subtype_indiv == 'Based on **:violet[item interaction]**.':
-            subexplanation = f"users who liked wines you previously enjoyed, also rated this wine highly."
+            subexplanation = f"We recommend this wine because it is similar to other wines you have rated highly"
         else:
         # CF user-user
-            subexplanation = f"users who rated wines you rated before similarly, also rated this wine highly."
-
-    return (f"We recommend this wine because {subexplanation}") 
+            subexplanation = f"We recommend this wine because users with similar tastes to yours have rated it highly"
+    return (f"We recommend this wine {subexplanation}") 
 
 
 def nonpersonalized(order):
@@ -270,12 +269,12 @@ def nonpersonalized(order):
         subexplanation = f"by number of ratings"
     
     elif order == "Rating":
-        subexplanation = f"by ratings"
+        subexplanation = f"by rating values"
 
     else:
         subexplanation = f"randomly"
-    return (f"It is the best wine of our ranking ordered {subexplanation}. "
-            f"It could be an exciting new discovery that surprises you if you give it a shot!🍷")
+    return (f"This wine is the top choice in our ranking, ordered {subexplanation}. "
+            f"It could be an exciting new discovery that surprises you if you give it a try!🍷")
 
 
 # Feedback CSV
@@ -395,15 +394,14 @@ def explanation(rec, rec_type, rec_subtype, group, current_user, threshold, sort
 
     st.markdown(
         f'''
-        The recommendation according the features provided is **:violet[{sorted_df.iloc[0]["WineName"]}]**'s wine.
+        Based on the provided features, we recommend **:violet[{sorted_df.iloc[0]["WineName"]}]**.
 
-        It is a **{wine_info["Body"].lower()}** **{wine_info["Type"].lower()} wine** done with **{grapes} grapes** which provide the **{wine_info['Acidity'].lower()} acidity**.
+        This wine is a **{wine_info["Body"].lower()}** **{wine_info["Type"].lower()} wine** made from **{grapes} grapes**, which contribute to its **{wine_info['Acidity'].lower()} acidity**.
         
         {explanation}
 
         A delightful companion to **{harmonize}**, this wine will elevate any meal with its balanced flavors. It is produced by ***{wine_info["WineryName"]}*** winery, located in **{wine_info["RegionName"]}**, **{wine_info["Country"]}** (access their website for further information).
         ''')
-    
     winery_website = st.button("Visit Winery Website")
     if winery_website:
         webbrowser.open_new_tab(wine_info['Website'])
@@ -412,10 +410,9 @@ def explanation(rec, rec_type, rec_subtype, group, current_user, threshold, sort
     st.markdown(
         '''  
 
-        And, please, do not forget to rate your experience with the service! See you soon.
+        We value your feedback! Please take a moment to rate your experience with our service. Thank you, and we look forward to seeing you again soon!
         ''')
     
-    st.write(st.session_state.clicked)
     new_folder_path = os.path.join(os.getcwd(), "feedback")
     if not os.path.exists(new_folder_path):
         os.makedirs(new_folder_path)
@@ -624,24 +621,24 @@ def main():
 
             cols = st.columns(3, gap="small", vertical_alignment="top")
             with cols[0]:
-                st.header(":violet[RANDOM]")
+                st.header(":violet[NON-PERSONALIZED RECOMMENDATION]")
                 st.image("https://cdn.icon-icons.com/icons2/2066/PNG/512/search_icon_125165.png", width=100)
                 if st.button("Let's try something new"):
                     st.session_state.page = 'try_new'
             with cols[1]:
-                st.header(":violet[MY RECOMMENDATIONS]")
+                st.header(":violet[INDIIDUAL RECOMMENDATION]")
                 st.image("https://cdn.iconscout.com/icon/free/png-256/free-person-icon-download-in-svg-png-gif-file-formats--user-profile-account-avatar-interface-pack-icons-1502146.png", width=100)
                 if st.button("Recommend me"):
                     st.session_state.page = 'recommend_individual'
             with cols[2]:
-                st.header(":violet[GROUP RECOMMENDATIONS]")
+                st.header(":violet[GROUP RECOMMENDATION]")
                 st.image("https://cdn.icon-icons.com/icons2/1744/PNG/512/3643747-friend-group-people-peoples-team_113434.png", width=100)
                 if st.button("Recommend to all"):
                     st.session_state.page = 'recommend_group'
 
         ####### NON-PERSONALIZED PAGE #######
         elif st.session_state.page == 'try_new':
-            st.title("LET'S TRY SOMETHING NEW")
+            st.title("NON-PERSONALIZED RECOMMENDATION")
             df_exists = False
             c0, c1, c2, c3 = st.columns([0.5, 1.5, 5, 0.5])
             c1.image("https://cdn.icon-icons.com/icons2/2066/PNG/512/search_icon_125165.png", width=200)
@@ -700,7 +697,7 @@ def main():
 
         ####### INDIVIDUAL RECOMMENDER PAGE #######
         elif st.session_state.page == 'recommend_individual':
-            st.title("MY RECOMMENDATIONS")
+            st.title("INDIIDUAL RECOMMENDATION")
             c0, c1, c12, c2, c3 = st.columns([0.5, 1.5, 0.2, 5, 0.5])
             c1.image("https://cdn.iconscout.com/icon/free/png-256/free-person-icon-download-in-svg-png-gif-file-formats--user-profile-account-avatar-interface-pack-icons-1502146.png", width=200)
             c2.write("Select your preferences to get a personalized recommendation.")
@@ -718,11 +715,13 @@ def main():
                     ##### Users similar to me
                     Recommendation of items based on the preferences and interactions of users with similar tastes to yours.
 
-                    ##### Based on item interaction
-                    Recommendation of items that are similar to those you’ve engaged with based on how other users interacted with them.
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Based on item interaction**
 
-                    ##### Based on user interaction
-                    Recommendation of items that users with similar preferences to you have liked or interacted with.
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Recommendation of items that are similar to those you’ve engaged with based on how other users interacted with them.
+
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Based on user interaction**
+                    
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Recommendation of items that users with similar preferences to you have liked or interacted with.
                     """
                 )
 
@@ -770,7 +769,7 @@ def main():
 
         ####### GROUP RECOMMENDER PAGE #######
         elif st.session_state.page == 'recommend_group':
-            st.title("GROUP WINE RECOMMENDATIONS")
+            st.title("GROUP RECOMMENDATION")
 
             c0, c1, c2, c3 = st.columns([0.5, 1.5, 5, 0.5])
             c1.image("https://cdn.icon-icons.com/icons2/1744/PNG/512/3643747-friend-group-people-peoples-team_113434.png", width=200)
@@ -784,12 +783,10 @@ def main():
                     ### Group recommendations
                     Recommends items to a group of users based on different strategies.
 
-                    ##### All equal
+                    ##### Majority based
                     Recommends the most popular items among your group members. 
-                    
-                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;............
 
-                    ##### Group preferences
+                    ##### Consensus based
                     Considers the preferences of all group members.
 
                     ##### Given criteria
@@ -804,7 +801,7 @@ def main():
             with col1:
                 with st.container(border=True):
                     st.markdown("#### Which type of recommendations would you prefer?")
-                    rec_type = st.radio("Select:", options=["All equal", "Group preferences", "Given criteria"])
+                    rec_type = st.radio("Select:", options=["Majority based", "Consensus based", "Given criteria"])
                     st.write("")
                     num_recs = st.slider(f"Number of recommendations", 1, 20, value = 1, step = 1)        
                     st.write("")
@@ -816,13 +813,12 @@ def main():
                     st.session_state.recommend_wine_clicked = False
             
             with col3: 
-                if rec_type == "All equal":
-                    recs = ['Each member vote for his/her **:violet[most preferred alternative]**.', 'Each member vote **:violet[as many alternatives as they wish]**.']
-                elif rec_type == "Group preferences": 
-                    recs = ['**:violet[Average all]** individual ratings.', '**:violet[Average]** individual ratings **:violet[higher than a threshold]**.',
-                            'More importance to **:violet[higher ratings]**.']
+                if rec_type == "Majority based":
+                    recs = ['Each member votes for his/her **:violet[most preferred alternative]**.', 'Each member votes **:violet[as many alternatives as they wish]**.']
+                elif rec_type == "Consensus based": 
+                    recs = ['**:violet[Add all]** individual ratings.', 'More importance to **:violet[higher ratings]**.']
                 else: # rec_type == "Given criteria"
-                    recs = [' Ensure that **:violet[no one is dissatisfied]**.', 'Ensure that the **:violet[majority is satisfied]**.', 'Consider the **:violet[opinion of the most respected person]** within the group.']
+                    recs = [' Ensure that **:violet[no one is dissatisfied]**.', 'Ensure that the **:violet[majority is satisfied]**.']
                 
                 st.title(rec_type.upper())
                 rec_subtype, num_people, group, impo_person, threshold = generic_options(recs)
