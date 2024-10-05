@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple
 import logging
 import pandas as pd
+import os
 
 logging.basicConfig(level=logging.INFO)
 
@@ -54,9 +55,14 @@ class Recommender:
     """Singleton class for managing recommendation models and strategies."""
 
     _instance = None  # Class-level attribute for Singleton instance
+    
+    # Get the base directory dynamically 
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+    # Use os.path.join to create relative paths for model files
     MODEL_PATHS = {
-        "user-user": "models/simple_uu_slim.pkl",
-        "item-item": "models/simple_ii_slim.pkl",
+        "user-user": os.path.join(BASE_DIR, "models", "simple_uu_slim.pkl"),
+        "item-item": os.path.join(BASE_DIR, "models", "simple_ii_slim.pkl"),
     }
 
     def __new__(cls, *args, **kwargs):
