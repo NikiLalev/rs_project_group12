@@ -3,5 +3,25 @@
     "Precision_Macro": 0.31605667613661936,
     "Recall_Macro": 0.31288476725163883,
     "F1_Score_Macro": 0.3007712370877407,
-    "Average_nDCG@10": 0.726503811714105
+    "Average_nDCG@10": 0.726503811714105,
+
+
+    "User-User_k=5": {
+        "Accuracy": 0.594772,
+        "Precision_Macro": 0.601677,
+        "Recall_Macro": 0.569452,
+        "F1_Score_Macro": 0.576780,
+        "Average_nDCG@10": 0.807030535384836,
+        "Catalog_coverage%_top10": 47.39,
+        "Catalog_coverage%_top100": 83.23
+    },
+    "Item-Item_k=15": {
+        "Accuracy": 0.6557474333867426,
+        "Precision_Macro": 0.660723247245005,
+        "Recall_Macro": 0.6418961189442082,
+        "F1_Score_Macro": 0.6481972864134904,
+        "Average_nDCG@10": 0.8173425011635165,
+        "Catalog_coverage%_top10": 49.74,
+        "Catalog_coverage%_top100": 90.46
+    }
 }
