@@ -146,16 +146,19 @@ def recommend_wine_filtered(full, selected_type, selected_body, selected_acidity
 
 ### INDIVIDUAL RECOMMENDATION ###
 # Function to recommend wine for a single user
-def recommend_wine_for_user(current_user, rec_type_indiv, rec_subtype_indiv, wine_data, num_recs):
+def recommend_wine_for_user(current_user, rec_type_indiv, wine_data, num_recs):
 
-    # Collaborative Filtering
-    if rec_type_indiv == "Users similar to me":
-        individual_recommender = Recommender()
-        if rec_subtype_indiv == "Based on **:violet[user interaction]**.": 
-            individual_recommender.load_model("user-user")
-        else: # recs_indiv == "Based on **:violet[item interaction]**.""
-            individual_recommender.load_model("item-item")
+    # Collaborative Filtering User-User
+    if rec_type_indiv == "**:violet[Users similar]** to me":
+        individual_recommender = Recommender() 
+        individual_recommender.load_model("user-user")
+        sorted_df = individual_recommender.recommend(user_id=current_user, n=num_recs)
+        sorted_df.rename(columns={'item': 'WineID', 'score': 'Rating'}, inplace=True)
+        sorted_df = pd.merge(sorted_df, wine_data, on='WineID', how='left') 
 
+    elif rec_type_indiv == "**:violet[Similar wines]** to what I have enjoyed":
+        individual_recommender = Recommender() 
+        individual_recommender.load_model("item-item")
         sorted_df = individual_recommender.recommend(user_id=current_user, n=num_recs)
         sorted_df.rename(columns={'item': 'WineID', 'score': 'Rating'}, inplace=True)
         sorted_df = pd.merge(sorted_df, wine_data, on='WineID', how='left') 
@@ -249,18 +252,16 @@ def personalized_grupal(rec_type, rec_subtype, group, threshold):
 
 ### INDIVIDUAL RECOMMENDATION EXPLANATIONS ###
 # Function to explain the recommended wine for a single user
-def personalized_individual(rec_type_indiv, rec_subtype_indiv):
+def personalized_individual(rec_type_indiv):
     # Content-based
-    if rec_type_indiv == "Similar to my past liked items": 
+    if rec_type_indiv == "Similar to my **:violet[past liked items]**.": 
         subexplanation = f"because it shares key features with wines you've previously rated highly."
-    
-    else: 
-        # CF item-item
-        if rec_subtype_indiv == 'Based on **:violet[item interaction]**.':
-            subexplanation = f"We recommend this wine because it is similar to other wines you have rated highly"
-        else:
-        # CF user-user
-            subexplanation = f"We recommend this wine because users with similar tastes to yours have rated it highly"
+    # CF item-item
+    elif rec_type_indiv == '**:violet[Similar wines]** to what I have enjoyed.':
+        subexplanation = f"We recommend this wine because it is similar to other wines you have rated highly"
+    # CF user-user
+    else:
+        subexplanation = f"We recommend this wine because users with similar tastes to yours have rated it highly"
     return (f"We recommend this wine {subexplanation}") 
 
 
@@ -383,7 +384,7 @@ def explanation(rec, rec_type, rec_subtype, group, current_user, threshold, sort
     if rec == 'try_new':
         explanation = nonpersonalized(order)
     elif rec == 'recommend_individual':
-        explanation = personalized_individual(rec_type, rec_subtype)
+        explanation = personalized_individual(rec_type)
     else: 
         explanation = personalized_grupal(rec_type, rec_subtype, group, threshold)
     
@@ -565,7 +566,7 @@ def options(num_cols, num_group, num_recom):
 ### INDIVIDUAL CF OPTIONS ###
 # Function to allow the user to specify some options regarding the CF recommendations
 def generic_options_indiv(): 
-    recs_indiv = ['Based on **:violet[item interaction]**.', 'Based on **:violet[user interaction]**.']
+    recs_indiv = ['Based on **:violet[user interaction]**.', 'Based on **:violet[item interaction]**.']
     st.write("")
     cols = st.columns((3))
     rec_type_indiv = cols[0].radio("How do you wanna deal with the recommendations?", recs_indiv)
@@ -626,7 +627,7 @@ def main():
                 if st.button("Let's try something new"):
                     st.session_state.page = 'try_new'
             with cols[1]:
-                st.header(":violet[INDIIDUAL RECOMMENDATION]")
+                st.header(":violet[INDIVIDUAL RECOMMENDATION]")
                 st.image("https://cdn.iconscout.com/icon/free/png-256/free-person-icon-download-in-svg-png-gif-file-formats--user-profile-account-avatar-interface-pack-icons-1502146.png", width=100)
                 if st.button("Recommend me"):
                     st.session_state.page = 'recommend_individual'
@@ -735,7 +736,7 @@ def main():
                 with col1:
                     with st.container(border=True):
                         st.markdown("#### Which type of recommendations would you prefer?")
-                        rec_type_indiv = st.radio("Select:", options=["Similar to my past liked items", "Users similar to me"])
+                        rec_type_indiv = st.radio("Select:", options=["Similar to my **:violet[past liked wines]**", "**:violet[Users similar]** to me", "**:violet[Similar wines]** to what I have enjoyed"])
                         st.write("")
                         num_recs = st.slider(f"Number of recommendations", 1, 20, value = 1, step = 1)        
                         st.write("")
@@ -747,9 +748,7 @@ def main():
                         st.session_state.recommend_wine_clicked = False
                 
                 with col3: 
-                    st.title(rec_type_indiv.upper())
-                    rec_subtype_indiv = generic_options_indiv() if rec_type_indiv == "Users similar to me" else ""
-                    
+                    st.title(rec_type_indiv.replace("**:violet[", "").replace("]**", "").upper())
                     with st.expander("**Add additional filters**", expanded=False):
                         selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs = options(num_cols=5, num_group=500, num_recom=num_recs)
                 
@@ -757,14 +756,14 @@ def main():
                 if st.session_state.get('recommend_wine_clicked', False):
                     st.title("List of Recommended Wines")
 
-                    sorted_df = recommend_wine_for_user(current_user, rec_type_indiv, rec_subtype_indiv, wine_data, 100)
+                    sorted_df = recommend_wine_for_user(current_user, rec_type_indiv, wine_data, 100)
                     sorted_df = recommend_wine_filtered(sorted_df, selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs, 'Rating')
 
                     display_wines(sorted_df, num_recs, nonpers = False)
                     st.markdown("#")
                     if not sorted_df.empty:
-                        explanation(st.session_state.page, rec_type_indiv, rec_subtype_indiv, "", current_user, "", sorted_df, "")
-                        feedback(st.session_state.page, rec_type_indiv, rec_subtype_indiv, sorted_df.iloc[0], "", current_user) 
+                        explanation(st.session_state.page, rec_type_indiv, "", "", current_user, "", sorted_df, "")
+                        feedback(st.session_state.page, rec_type_indiv, "", sorted_df.iloc[0], "", current_user) 
 
 
         ####### GROUP RECOMMENDER PAGE #######
