@@ -251,7 +251,7 @@ def explanation(rec, rec_type, rec_subtype, group, current_user, sorted_df, orde
 
 
 # Feedback CSV
-FEEDBACK_COLUMNS = ['UserID', 'WineID', 'RecSys', 'RecSysType', 'RecSysSubtype', 'Satisfaction', 'Effectiveness', 'Fairness', 'Persuasiveness', 'Persuasiveness_link', 'Transparency', 'Accuracy', 'Effectiveness1', 'Detail', 'Trust']
+FEEDBACK_COLUMNS = ['UserID', 'WineID', 'RecSys', 'RecSysType', 'RecSysSubtype', 'Satisfaction', 'Effectiveness', 'Persuasiveness', 'Persuasiveness_link', 'Transparency', 'Accuracy', 'Effectiveness1', 'Detail', 'Trust']
 
 def save_feedback(feedback_data, csv_path):
     if not os.path.exists(csv_path):
@@ -352,9 +352,8 @@ def feedback_explanation(rec, rec_type, rec_subtype, group, current_user, wine_i
             'RecSys': (rec).split("_")[-1],
             'RecSysType': (rec_type).lower(),
             'RecSysSubtype': (extract_string(rec_subtype)).split("[")[-1].removesuffix("]"),
-            'Satisfaction': (stars_mapping[ex_satisfaction]).split("/")[-1].removesuffix(":"),
             'Effectiveness': (sentiment_mapping[ex_effectiveness]).split("/")[-1].removesuffix(":"),
-            'Fairness': current_fairness_dict if rec == 'recommend_group' else stars_mapping[ex_satisfaction], 
+            'Satisfaction': current_fairness_dict if rec == 'recommend_group' else stars_mapping[ex_satisfaction], 
             'Persuasiveness': (sentiment_mapping[ex_persuasiveness]).split("/")[-1].removesuffix(":"),
             'Persuasiveness_link': clicked,
             'Transparency': (sentiment_mapping[ex_transparency]).split("/")[-1].removesuffix(":"),
