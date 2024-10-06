@@ -67,6 +67,7 @@ def generate_personalized_explanation(recommended_wine: pd.Series, ratings: pd.D
     liked_wines = all_wines[all_wines['WineID'].isin(ratings[ratings['Rating'] >= 4]['WineID'])].drop_duplicates(subset=['WineID'])
     
     explanations = {}
+    harmonize_items = []
     who = "You" if threshold == 0.8 else "The group"
     
     if len(liked_wines) > 2:
@@ -108,7 +109,6 @@ def generate_personalized_explanation(recommended_wine: pd.Series, ratings: pd.D
         if abs(recommended_wine['ABV'] - avg_abv) <= 1:
             explanations['ABV'] = f"This wine's ABV (**{recommended_wine['ABV']}%**) is similar to your preferred average of {avg_abv:.1f}%."
         
-        harmonize_items = []
         # Strategy for Grapes and Harmonize
         def process_list_feature(feature_name):
             user_items = [item for items in liked_wines[feature_name] for item in items]
