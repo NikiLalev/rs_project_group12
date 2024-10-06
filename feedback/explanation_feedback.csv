@@ -29,3 +29,36 @@ UserID;WineID;RecSys;RecSysType;RecSysSubtype;Satisfaction;Effectiveness;Fairnes
 1219877;182711;individual;**:violet[similar wines]** to what i have enjoyed;;4;thumb_up;4;thumb_down;No;thumb_down;thumb_up;thumb_down;thumb_up;thumb_up
 1104668;144337;individual;**:violet[users similar]** to me;;2;thumb_up;2;thumb_down;No;thumb_down;thumb_up;thumb_down;thumb_up;thumb_down
 1002016;144337;individual;**:violet[users similar]** to me;;3;thumb_up;3;thumb_up;No;thumb_down;thumb_down;thumb_up;thumb_up;thumb_up
+111415;new;non-personalized;;3;thumb_up;3;thumb_down;No;thumb_up;thumb_up;thumb_down;thumb_up;thumb_down
+1786440;167154;individual;similar to my **:violet[past liked wines]**;;5;thumb_up;5;thumb_up;No;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+[1218927, 1378680];182169;group;majority based;;thumb_up;{1218927: '3', 1378680: '5'};thumb_up;No;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+[1785820, 1246726];180330;group;consensus based;Add all;thumb_down;{1785820: '5', 1246726: '4'};thumb_down;Yes;thumb_up;thumb_down;thumb_down;thumb_up;thumb_up
+;186159;new;non-personalized;;4;thumb_up;4;thumb_up;No;thumb_up;thumb_up;thumb_down;thumb_up;thumb_up
+[1087583, 1134638, 1257228, 1209864];112526;group;given criteria;no one is dissatisfied;thumb_down;{1087583: '4', 1134638: '3', 1257228: '2', 1209864: '2'};thumb_down;No;thumb_up;thumb_down;thumb_down;thumb_up;thumb_up
+;186159;new;non-personalized;;5;thumb_up;5;thumb_up;No;thumb_up;thumb_up;thumb_up;thumb_up;thumb_down
+[1652802, 1265301, 1234681, 1403461, 1034561, 1239752, 1234923];174184;group;consensus based;higher ratings;thumb_up;{1652802: '5', 1265301: '4', 1234681: '5', 1403461: '4', 1034561: '5', 1239752: '3', 1234923: '5'};thumb_up;No;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+[1234321, 1003250, 1745196, 1213731, 1165465, 1175691];174184;group;given criteria;majority is satisfied;thumb_up;{1234321: '5', 1003250: '4', 1745196: '5', 1213731: '4', 1165465: '5', 1175691: '5'};thumb_up;Yes;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+1067892;109876;new;non-personalized;;2;thumb_down;2;thumb_down;No;thumb_down;thumb_down;thumb_down;thumb_up;thumb_down
+2035109;120346;new;non-personalized;;4;thumb_up;4;thumb_up;No;thumb_up;thumb_up;thumb_down;thumb_up;thumb_up
+[1034892, 1428571];189456;group;majority based;based on top choices;thumb_up;{1034892: '4', 1428571: '5'};thumb_up;No;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+1097520;115487;individual;**:violet[similar wines]** to what i have enjoyed;;3;thumb_down;3;thumb_down;No;thumb_down;thumb_down;thumb_down;thumb_up;thumb_down
+1342689;137590;individual;**:violet[users similar]** to me;;5;thumb_up;5;thumb_up;Yes;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+[1209864, 1257728];178462;group;consensus based;consensus strong;thumb_down;{1209864: '3', 1257728: '2'};thumb_down;No;thumb_down;thumb_down;thumb_up;thumb_up;thumb_up
+1502961;152784;new;non-personalized;;1;thumb_down;1;thumb_down;No;thumb_down;thumb_down;thumb_down;thumb_down;thumb_down
+1275451;116756;group;majority based;;thumb_up;{1275451: '5', 1358901: '4'};thumb_up;Yes;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+[1296725, 1763548, 1987654];182711;group;consensus based;rating close;thumb_down;{1296725: '4', 1763548: '3', 1987654: '3'};thumb_down;No;thumb_up;thumb_down;thumb_down;thumb_up;thumb_down
+1074250;200139;individual;similar to my **:violet[past liked wines]**;;4;thumb_up;4;thumb_up;No;thumb_up;thumb_up;thumb_down;thumb_down;thumb_up
+1623450;134512;new;non-personalized;;5;thumb_up;5;thumb_up;No;thumb_up;thumb_up;thumb_up;thumb_up;thumb_down
+1945768;145789;new;non-personalized;;1;thumb_down;1;thumb_down;No;thumb_down;thumb_down;thumb_down;thumb_down;thumb_down
+[1354789, 1567342, 1758923];194578;group;consensus based;everyone agrees;thumb_up;{1354789: '5', 1567342: '4', 1758923: '5'};thumb_up;No;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+1765879;112345;individual;similar to my **:violet[past liked wines]**;;5;thumb_up;5;thumb_up;Yes;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+1867542;167123;new;non-personalized;;3;thumb_up;3;thumb_down;No;thumb_up;thumb_down;thumb_down;thumb_up;thumb_down
+1835490;158789;new;non-personalized;;2;thumb_down;2;thumb_down;No;thumb_down;thumb_down;thumb_down;thumb_up;thumb_down
+1254389;134987;group;majority based;;thumb_up;{1254389: '4', 1325765: '5'};thumb_up;Yes;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+[1689754, 1394762];145321;group;majority based;top choice selected;thumb_down;{1689754: '3', 1394762: '2'};thumb_down;No;thumb_down;thumb_down;thumb_down;thumb_down;thumb_down
+1598753;145987;individual;**:violet[similar wines]** to what i have enjoyed;;3;thumb_down;3;thumb_down;No;thumb_down;thumb_down;thumb_up;thumb_up;thumb_down
+[1634782, 1478321];183476;group;consensus based;rating close;thumb_down;{1634782: '3', 1478321: '3'};thumb_down;No;thumb_down;thumb_down;thumb_down;thumb_up;thumb_down
+1075892;123678;individual;**:violet[similar wines]** to what i have enjoyed;;2;thumb_down;2;thumb_down;No;thumb_down;thumb_down;thumb_down;thumb_down;thumb_down
+[1473289, 1357896];154789;group;consensus based;most liked;thumb_up;{1473289: '5', 1357896: '4'};thumb_up;Yes;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+1375948;134578;individual;**:violet[users similar]** to me;;4;thumb_up;4;thumb_up;Yes;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
+1425984;134789;individual;similar to my **:violet[past liked wines]**;;1;thumb_down;1;thumb_down;No;thumb_down;thumb_down;thumb_down;thumb_down;thumb_down
