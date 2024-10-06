@@ -3,6 +3,7 @@ import os
 import ast
 import pickle
 import webbrowser
+from typing import List, Dict
 import pandas as pd
 import streamlit as st
 from streamlit_option_menu import option_menu
@@ -11,6 +12,9 @@ import streamlit_toggle as sts
 # Import Recommerder Systems
 from Recommender import Recommender
 from aggregators import AggregationStrategy 
+
+# Import explanations
+from Explanations import explanation, save_feedback, extract_string
 
 
 # Extract wine data
@@ -23,10 +27,6 @@ full = pd.merge(ratings_data, wine_data, on ='WineID')
 
 full['numRatings'] = full.groupby('WineID')['Rating'].transform('count')
 wine_data = wine_data.merge(full[['WineID', 'numRatings']], on='WineID', how='left')
-
-def extract_string(sentence):
-    matches = re.findall(r'\*\*(.*?)\*\*', sentence)
-    return " ".join(list((matches)))
 
 
 def display_wines(sorted_df, num_recs, nonpers):
@@ -200,225 +200,23 @@ def recommend_wine_for_group(rec_type, rec_subtype, group, num_recs):
 
     if rec_type == "Majority based": # Plurality Voting
         group_rec = pd.DataFrame(group_rec['PLU'], columns=['WineID'])
-        return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID']) 
         
     elif rec_type == "Consensus based":
         if rec_subtype == '**:violet[Add all]** individual ratings.': # Additive
             group_rec = pd.DataFrame(group_rec['ADD'], columns=['WineID'])
-            return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID']) 
         
         else: # Multiplicative
             group_rec = pd.DataFrame(group_rec['MUL'], columns=['WineID'])
-            return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID'])
 
     else: # rec_type == "Given criteria"
         if rec_subtype == ' Ensure that **:violet[no one is dissatisfied]**.': # Least Misery
             group_rec = pd.DataFrame(group_rec['LMS'], columns=['WineID'])
-            return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID'])
 
         else: # Most Pleasure
             group_rec = pd.DataFrame(group_rec['MPL'], columns=['WineID'])
-            return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID'])
- 
 
-### GROUP RECOMMENDATION EXPLANATIONS ###
-# Function to explain the recommended wine for a group
-def personalized_grupal(rec_type, rec_subtype, group, threshold):
-    if rec_type == "Majority based": 
-        if rec_subtype == "Each member votes for his/her **:violet[most preferred alternative]**.":
-            subexplanation = f" by identifying their {extract_string(rec_subtype)}s"
-        else: 
-            subexplanation = f" by storing {extract_string(rec_subtype)} while applying a threshold of above 2.5 for each rating."
-    
-    elif rec_type == "Consensus based":
-        if rec_subtype == "**:violet[Add all]** individual ratings.":
-            subexplanation = f", calculating the sum of all ratings for each wine."
-        elif rec_subtype == "**:violet[Add]** individual ratings **:violet[higher than a threshold]**.":
-            subexplanation = f", calculating the sum of all ratings for each wine that exceed {threshold}."
-        else:
-            subexplanation = f", calculating the product of all ratings for each wine."
-    
-    else: 
-        if rec_subtype == "Consider the **:violet[opinion of the most respected person]** within the group.":
-            subexplanation = f" considering the perspective of the most respected member."
-        else:
-            subexplanation = f" ensuring than {extract_string(rec_subtype)} "
-            op = "maximum" if rec_subtype == "Ensure that the **:violet[majority is satisfied]**." else "minimum"
-            
-            subexplanation += f" by assuming that the group rating reflects the {op} of the individual ratings."
-            
-    return (f"This wine has been identified as the best choice for all {len(group)} group members. "
-            f"Taking into account each user's previous ratings and{subexplanation}, this wine received the highest number of positive votes among them.")
-
-### INDIVIDUAL RECOMMENDATION EXPLANATIONS ###
-# Function to explain the recommended wine for a single user
-def personalized_individual(rec_type_indiv):
-    # Content-based
-    if rec_type_indiv == "Similar to my **:violet[past liked items]**.": 
-        subexplanation = f"because it shares key features with wines you've previously rated highly."
-    # CF item-item
-    elif rec_type_indiv == '**:violet[Similar wines]** to what I have enjoyed.':
-        subexplanation = f"We recommend this wine because it is similar to other wines you have rated highly"
-    # CF user-user
-    else:
-        subexplanation = f"We recommend this wine because users with similar tastes to yours have rated it highly"
-    return (f"We recommend this wine {subexplanation}") 
-
-
-def nonpersonalized(order):
-    if order == "numRatings":
-        subexplanation = f"by number of ratings"
-    
-    elif order == "Rating":
-        subexplanation = f"by rating values"
-
-    else:
-        subexplanation = f"randomly"
-    return (f"This wine is the top choice in our ranking, ordered {subexplanation}. "
-            f"It could be an exciting new discovery that surprises you if you give it a try!🍷")
-
-
-# Feedback CSV
-FEEDBACK_COLUMNS = ['UserID', 'WineID', 'Satisfaction', 'Effectiveness', 'Fairness', 'Persuasiveness']
-def save_feedback(feedback_data, csv_path):
-    if not os.path.exists(csv_path):
-        pd.DataFrame([feedback_data]).to_csv(csv_path, sep=';', mode='w', header=True, index=False)
-    else: # Append feedback row 
-        pd.DataFrame([feedback_data]).to_csv(csv_path, sep=';', mode='a', header=False, index=False)
-
-### EXPLANATIONS FEEDBACK ###
-# Function to store the user's feedback on the given recommendation explanation
-def feedback_explanation(rec, rec_type, rec_subtype, group, current_user, wine_info, clicked):
-    sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
-    stars_mapping = ["1", "2", "3", "4", "5"]
-    st.write(clicked)
-    people = "the group" if rec == 'recommend_group' else "your"
-    
-    if rec == 'recommend_group':
-        group_key = "_".join(str(group))
-        current_fairness_dict_key = f"fairness_dict_{group_key}"
-        if current_fairness_dict_key not in st.session_state:
-            st.session_state[current_fairness_dict_key] = {member: None for member in group}
-        current_fairness_dict = st.session_state[current_fairness_dict_key]
-    
-    st.session_state['feedback_submitted'] = False
-    
-    st.write("")
-    with st.container(border=True):
-        cols = st.columns([2,2,2,3])
-
-        with cols[0]:
-            st.markdown("###### Did you find this explanation useful?")
-            ex_satisfaction = st.feedback("thumbs", key="satisfaction")
-            if ex_satisfaction is not None:
-                st.markdown(f"You selected: {sentiment_mapping[ex_satisfaction]}. Thanks!")
-
-        with cols[1]:
-            st.markdown(f"###### Does this explanation meet {people} requirements?")
-            ex_effectiveness = st.feedback("thumbs", key="effectiveness")
-            if ex_effectiveness is not None:
-                st.markdown(f"You selected: {sentiment_mapping[ex_effectiveness]}. Thanks!")
-
-        with cols[2]:
-            st.markdown("###### After the explanation, are you willing to give this wine a chance?")
-            ex_persuasiveness = st.feedback("thumbs", key="persuasiveness")
-            if ex_persuasiveness is not None:
-                st.markdown(f"You selected: {sentiment_mapping[ex_persuasiveness]}. Thanks!")
-
-        with cols[3]:
-            if rec == 'recommend_group':
-                st.markdown(f"###### Rate your individual satisfaction with the recommendation")
-                c1, c12, c2 = st.columns([2,0.2,2.5], vertical_alignment="center")
-                member = c1.selectbox("**Who are you?**", options=group)
-
-                if current_fairness_dict[member] is not None: # If member has already voted, disable the feedback widget
-                    c2.markdown(f"**{member} has already voted** and selected {current_fairness_dict[member]} star(s).")
-                else: # Allow voting if the member hasn't voted yet
-                    ex_fairness = c2.feedback("stars", key=f"fairness_{member}", disabled=False)  # Feedback widget is enabled
-                    if ex_fairness is not None:
-                        current_fairness_dict[member] = stars_mapping[ex_fairness]
-                        c2.markdown(f"You selected: {stars_mapping[ex_fairness]} star(s). Thanks {member}!")
-                
-                st.session_state['current_fairness_dict'] = current_fairness_dict # save updated dictionary 
-        
-        
-        expl_feed = st.button(label="Submit", key="expl")
-
-    # Save feedback when 'submit' button has been selected
-    if expl_feed: # all([ex_satisfaction is not None, ex_effectiveness is not None, ex_fairness is not None, ex_persuasiveness is not None]):
-        feedback_data = {
-            'UserID': "" if rec == "try_new" else (group if rec == 'recommend_group' else current_user),
-            'WineID': wine_info['WineID'],
-            'RecSys': (rec).split("_")[-1],
-            'RecSysType': (rec_type).lower(),
-            'RecSysSubtype': (extract_string(rec_subtype)).split("[")[-1].removesuffix("]"),
-            'Satisfaction': (sentiment_mapping[ex_satisfaction]).split("/")[-1].removesuffix(":"),
-            'Effectiveness': (sentiment_mapping[ex_effectiveness]).split("/")[-1].removesuffix(":"),
-            'Fairness': current_fairness_dict if rec == 'recommend_group' else "", 
-            'Persuasiveness': (sentiment_mapping[ex_persuasiveness]).split("/")[-1].removesuffix(":"),
-            'Persuasiveness_link': clicked
-        }
-        save_feedback(feedback_data, "feedback\\explanation_feedback.csv")
-        st.session_state['feedback_submitted'] = True
-        if st.session_state['feedback_submitted']:
-            st.write("")
-            st.success("Thanks for your feedback on the explanation!")
-
-            # Set flag to allow reset in next call
-            st.session_state.reset_clicked = True
-            return  # Exit the function so no further feedback options are displayed
-    
-
-### EXPLANATIONS ###
-# General function for the explanations of each recommendation performed
-def explanation(rec, rec_type, rec_subtype, group, current_user, threshold, sorted_df, order):
-    st.header("**Why this recommendation?**")
-    wine_info = wine_data[wine_data['WineID'] == sorted_df['WineID'].iloc[0]].iloc[0]
-    
-    def join_list_with_and(items):
-        return ', '.join(items[:-1]) + ' and ' + items[-1] if len(items) > 1 else ''.join(items)
-
-    grapes = join_list_with_and(wine_info["Grapes"])
-    harmonize = join_list_with_and(wine_info["Harmonize"])
-    
-    if rec == 'try_new':
-        explanation = nonpersonalized(order)
-    elif rec == 'recommend_individual':
-        explanation = personalized_individual(rec_type)
-    else: 
-        explanation = personalized_grupal(rec_type, rec_subtype, group, threshold)
-    
-    # Reset 'clicked' state every time the function is called
-    if 'clicked' not in st.session_state or st.session_state.reset_clicked:
-        st.session_state.clicked = "No"
-        st.session_state.reset_clicked = False  # To prevent further resets within the same function call
-
-    st.markdown(
-        f'''
-        Based on the provided features, we recommend **:violet[{sorted_df.iloc[0]["WineName"]}]**.
-
-        This wine is a **{wine_info["Body"].lower()}** **{wine_info["Type"].lower()} wine** made from **{grapes} grapes**, which contribute to its **{wine_info['Acidity'].lower()} acidity**.
-        
-        {explanation}
-
-        A delightful companion to **{harmonize}**, this wine will elevate any meal with its balanced flavors. It is produced by ***{wine_info["WineryName"]}*** winery, located in **{wine_info["RegionName"]}**, **{wine_info["Country"]}** (access their website for further information).
-        ''')
-    winery_website = st.button("Visit Winery Website")
-    if winery_website:
-        webbrowser.open_new_tab(wine_info['Website'])
-        st.session_state.clicked = "Yes"
-    
-    st.markdown(
-        '''  
-
-        We value your feedback! Please take a moment to rate your experience with our service. Thank you, and we look forward to seeing you again soon!
-        ''')
-    
-    new_folder_path = os.path.join(os.getcwd(), "feedback")
-    if not os.path.exists(new_folder_path):
-        os.makedirs(new_folder_path)
-    feedback_explanation(rec, rec_type, rec_subtype, group, current_user, wine_info, st.session_state.clicked)
-    
+    return pd.merge(group_rec, wine_data, on='WineID', how='left').drop_duplicates(subset=['WineID']) 
+  
 
 ### STORE USER FEEDBACK ###
 def feedback(rec, rec_type, rec_subtype, sorted_df, group, current_user, nonpers = False):
@@ -578,7 +376,11 @@ def generic_options_indiv():
 # Function to allow the user to specify some options regarding the group recommendations
 def generic_options(recs):
     cols = st.columns((3))
-    rec_type = cols[0].radio("How do you wanna deal with the recommendations?", recs)
+    if recs:
+        rec_type = cols[0].radio("How do you wanna deal with the recommendations?", recs) if recs else "Majority based"
+    else:
+        cols[0].write("Each member votes **:violet[as many alternatives as they wish]**.")
+        rec_type = "Majority based"
 
     st.write("")
     num_people = cols[1].slider(f"Number of people within the group", 2, 10, value = 2, step = 1)  
@@ -586,10 +388,7 @@ def generic_options(recs):
     st.write("")      
     group = cols[2].multiselect("Select the members of the group", ratings_data['UserID'].unique(), max_selections=num_people)
     
-    impo_person = cols[2].selectbox('Select the most important person in the group:', group) if rec_type =='Consider the **:violet[opinion of the most respected person]** within the group.' else None
-    threshold = cols[2].slider(f"Select the minimum rating to be taken into account", 1.0, 5.0, value = 1.0, step = 0.5) if rec_type =='**:violet[Average]** individual ratings **:violet[higher than a threshold]**.' else 1.0
-    
-    return rec_type, num_people, group, impo_person, threshold
+    return rec_type, num_people, group
 
 
 # Main website
@@ -692,13 +491,13 @@ def main():
             
             if df_exists and st.session_state.get('recommend_wine_clicked', False):
                 st.markdown("###")
-                explanation(st.session_state.page, "Non-personalized", "", "", "", "", sorted_df, order)
+                explanation(st.session_state.page, "Non-personalized", "", "", "", sorted_df, order)
                 feedback(st.session_state.page, "", "", sorted_df.iloc[0], "", "", nonpers=True)  
 
 
         ####### INDIVIDUAL RECOMMENDER PAGE #######
         elif st.session_state.page == 'recommend_individual':
-            st.title("INDIIDUAL RECOMMENDATION")
+            st.title("INDIVIDUAL RECOMMENDATION")
             c0, c1, c12, c2, c3 = st.columns([0.5, 1.5, 0.2, 5, 0.5])
             c1.image("https://cdn.iconscout.com/icon/free/png-256/free-person-icon-download-in-svg-png-gif-file-formats--user-profile-account-avatar-interface-pack-icons-1502146.png", width=200)
             c2.write("Select your preferences to get a personalized recommendation.")
@@ -711,18 +510,15 @@ def main():
                     Personalized suggestions tailored to your preferences based on past interactions and similar users.
 
                     ##### Similar to my past liked items
-                    Recommendation of items that are similar to those you’ve previously liked, using item features and interactions.
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Recommendation of items that are similar to those you’ve previously liked, using item features and interactions.
 
                     ##### Users similar to me
-                    Recommendation of items based on the preferences and interactions of users with similar tastes to yours.
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Recommendation of items that users with similar preferences to you have liked or interacted with.
 
-                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Based on item interaction**
+                    ##### &nbsp;Similar wines to what I have enjoyed
 
                     &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Recommendation of items that are similar to those you’ve engaged with based on how other users interacted with them.
 
-                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Based on user interaction**
-                    
-                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Recommendation of items that users with similar preferences to you have liked or interacted with.
                     """
                 )
 
@@ -762,7 +558,7 @@ def main():
                     display_wines(sorted_df, num_recs, nonpers = False)
                     st.markdown("#")
                     if not sorted_df.empty:
-                        explanation(st.session_state.page, rec_type_indiv, "", "", current_user, "", sorted_df, "")
+                        explanation(st.session_state.page, rec_type_indiv, "", "", current_user, sorted_df, "")
                         feedback(st.session_state.page, rec_type_indiv, "", sorted_df.iloc[0], "", current_user) 
 
 
@@ -783,13 +579,13 @@ def main():
                     Recommends items to a group of users based on different strategies.
 
                     ##### Majority based
-                    Recommends the most popular items among your group members. 
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Recommends the most popular items among your group members. 
 
                     ##### Consensus based
-                    Considers the preferences of all group members.
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Considers the preferences of all group members.
 
                     ##### Given criteria
-                    Considers only a subset of items, based on user roles or any other relevant criteria.
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Considers only a subset of items, based on user roles or any other relevant criteria.
                     """
                 )
 
@@ -812,15 +608,15 @@ def main():
                     st.session_state.recommend_wine_clicked = False
             
             with col3: 
-                if rec_type == "Majority based":
-                    recs = ['Each member votes for his/her **:violet[most preferred alternative]**.', 'Each member votes **:violet[as many alternatives as they wish]**.']
+                if rec_type == "Given criteria":
+                    recs = [' Ensure that **:violet[no one is dissatisfied]**.', 'Ensure that the **:violet[majority is satisfied]**.']
                 elif rec_type == "Consensus based": 
                     recs = ['**:violet[Add all]** individual ratings.', 'More importance to **:violet[higher ratings]**.']
-                else: # rec_type == "Given criteria"
-                    recs = [' Ensure that **:violet[no one is dissatisfied]**.', 'Ensure that the **:violet[majority is satisfied]**.']
-                
+                else: # 
+                    recs = []
+
                 st.title(rec_type.upper())
-                rec_subtype, num_people, group, impo_person, threshold = generic_options(recs)
+                rec_subtype, num_people, group = generic_options(recs)
                 
                 with st.expander("**Add additional filters**", expanded=False):
                     selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs = options(num_cols=5, num_group=num_people, num_recom=num_recs)
@@ -828,16 +624,17 @@ def main():
             st.divider()
             if st.session_state.get('recommend_wine_clicked', False):
                 st.title("List of Recommended Wines")
-
-                sorted_df = recommend_wine_for_group(rec_type, rec_subtype, group, 100)
-                sorted_df.rename(columns={'rating': 'Rating'}, inplace=True)
-                sorted_df = recommend_wine_filtered(sorted_df, selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs, "")
-                display_wines(sorted_df, num_recs, nonpers = False)
-                st.markdown("#")
-                if not sorted_df.empty:
-                    explanation(st.session_state.page, rec_type, rec_subtype, group, "", threshold, sorted_df, "")
-                    feedback(st.session_state.page, rec_type, rec_subtype, sorted_df.iloc[0], group, "")
-
+                if group is not None:
+                    sorted_df = recommend_wine_for_group(rec_type, rec_subtype, group, 100)
+                    sorted_df.rename(columns={'rating': 'Rating'}, inplace=True)
+                    sorted_df = recommend_wine_filtered(sorted_df, selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs, "")
+                    display_wines(sorted_df, num_recs, nonpers = False)
+                    st.markdown("#")
+                    if not sorted_df.empty:
+                        explanation(st.session_state.page, rec_type, rec_subtype, group, "", sorted_df, "")
+                        feedback(st.session_state.page, rec_type, rec_subtype, sorted_df.iloc[0], group, "")
+                else:
+                    st.write("Please, fill the group membership before asking for a wine recommendation!")
 
 # Run the app
 if __name__ == '__main__':
