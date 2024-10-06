@@ -624,7 +624,7 @@ def main():
             st.divider()
             if st.session_state.get('recommend_wine_clicked', False):
                 st.title("List of Recommended Wines")
-                if group is not None:
+                if len(group)!=0:
                     sorted_df = recommend_wine_for_group(rec_type, rec_subtype, group, 100)
                     sorted_df.rename(columns={'rating': 'Rating'}, inplace=True)
                     sorted_df = recommend_wine_filtered(sorted_df, selected_type, selected_body, selected_acidity, selected_country, selected_region, selected_ABV, selected_grapes, selected_elaborate, selected_harmonize, min_ratings, num_recs, "")
