@@ -77,6 +77,7 @@ def generate_personalized_explanation(recommended_wine: pd.Series, user_ratings:
         if abs(recommended_wine['ABV'] - avg_abv) <= 1:
             explanations['ABV'] = f"This wine's ABV ({recommended_wine['ABV']}%) is similar to your preferred average of {avg_abv:.1f}%."
         
+        harmonize_items = []
         # Strategy for Grapes and Harmonize
         def process_list_feature(feature_name):
             user_items = [item for items in liked_wines[feature_name] for item in items]
@@ -86,9 +87,10 @@ def generate_personalized_explanation(recommended_wine: pd.Series, user_ratings:
                 if feature_name == 'Grapes':
                     return f"This wine features {join_list_with_and(list(common_items))} grapes, which are also present among your favourite wines."
                 elif feature_name == 'Harmonize':
+                    harmonize_items.append(common_items)
                     common_items = [item.lower() for item in common_items]
                     d = "a dish" if len(common_items) == 1 else "dishes"
-                    return f"{recommended_wine['WineName']} pairs beautifully with {join_list_with_and(list(common_items))}, {d} you've enjoyed alongside previous wines, making it an excellent choice for your next meal."
+                    return f"{recommended_wine['WineName']} pairs beautifully with {join_list_with_and(list(common_items))} {d} you've enjoyed alongside previous wines, making it an excellent choice for your next meal."
 
             return None
         
@@ -100,7 +102,7 @@ def generate_personalized_explanation(recommended_wine: pd.Series, user_ratings:
     else:
         explanations['general'] = "We don't have enough information about your preferences yet, but we think you might enjoy this wine based on its overall characteristics. Give it a try and let us know!"
     
-    return explanations
+    return explanations, harmonize_items
 
 
 ### GROUP RECOMMENDATION EXPLANATIONS ###
@@ -155,12 +157,13 @@ def nonpersonalized(order):
 
 def get_personalized_explanation(recommended_wine, current_user):
     user_ratings = ratings_data[ratings_data['UserID'] == current_user]
-    explanations = generate_personalized_explanation(recommended_wine, user_ratings, wine_data)
+    explanations, harmonize_items = generate_personalized_explanation(recommended_wine, user_ratings, wine_data)
     pers_expl = ""
     for feature, explanation in explanations.items():
         if explanation: # print non-empty explanations
             pers_expl += explanation + " "
-    return pers_expl.strip(), explanations
+    harm = harmonize_items[0] if harmonize_items else None
+    return pers_expl.strip(), harm  
 
 
 ### EXPLANATIONS ###
@@ -176,10 +179,9 @@ def explanation(rec, rec_type, rec_subtype, group, current_user, sorted_df, orde
     else: 
         explanation = personalized_grupal(rec_type, rec_subtype, group)
 
-    extended_explanation, pers_explanations = get_personalized_explanation(wine_info, current_user) if rec != 'try_new' else "", ""
-    
+    extended_explanation, harmonize_items = get_personalized_explanation(wine_info, current_user) if rec != 'try_new' else ("", None)
     grapes = join_list_with_and(wine_info["Grapes"])
-    harmonize = [item.lower() for item in wine_info['Harmonize'] if item not in pers_explanations['Harmonize']] if extended_explanation else [item.lower() for item in wine_info['Harmonize']]
+    harmonize = [item.lower() for item in wine_info['Harmonize'] if item not in list(harmonize_items)] if harmonize_items else [item.lower() for item in wine_info['Harmonize']]
     extra_harmonize = ""
     if harmonize: 
         harmonize = join_list_with_and(harmonize)
@@ -193,7 +195,7 @@ def explanation(rec, rec_type, rec_subtype, group, current_user, sorted_df, orde
 
     st.markdown(
         f'''
-        Based on the provided features, we highly recommend **:violet[{sorted_df.iloc[0]["WineName"]}]**. This is a **{wine_info["Body"].lower()}**, rich **{wine_info["Type"].lower()} wine** crafted from a blend of **{grapes} grapes**. These distinctive varities not only add depth but also lend the wine it notably **{wine_info['Acidity'].lower()} acidity**.
+        Based on the provided features, we highly recommend **:violet[{sorted_df.iloc[0]["WineName"]}]**. This is a **{wine_info["Body"].lower()}**, rich **{wine_info["Type"].lower()} wine** crafted from a blend of **{grapes} grapes**. These distinctive varities not only add depth but also lend the wine its notably **{wine_info['Acidity'].lower()} acidity**.
         
         {extended_explanation}
 
@@ -209,9 +211,7 @@ def explanation(rec, rec_type, rec_subtype, group, current_user, sorted_df, orde
     
     st.markdown(
         f'''  
-        We encourage you to give it a try and share your thoughts with us! Your feedback is invaluable, and we’d love to hear what you think!
-        
-        Please take a moment to rate your experience with **:violet[{wine_info['WineName']}]** and our recommendation service. Your feedback helps us tailor our future suggestions to suit your preferences even better.
+        We encourage you to give it a try and share your thoughts with us! Rate your experience with **:violet[{wine_info['WineName']}]** and our recommendation service. Your feedback helps us tailor our future suggestions to suit your preferences even better.
 
         Thank you for choosing us, and we look forward to helping you discover your next favorite wine!
         ''')
@@ -224,7 +224,8 @@ def explanation(rec, rec_type, rec_subtype, group, current_user, sorted_df, orde
 
 
 # Feedback CSV
-FEEDBACK_COLUMNS = ['UserID', 'WineID', 'Satisfaction', 'Effectiveness', 'Fairness', 'Persuasiveness']
+FEEDBACK_COLUMNS = ['UserID', 'WineID', 'RecSys', 'RecSysType', 'RecSysSubtype', 'Satisfaction', 'Effectiveness', 'Fairness', 'Persuasiveness', 'Persuasiveness_link', 'Transparency', 'Accuracy', 'Effectiveness1', 'Detail', 'Trust']
+
 def save_feedback(feedback_data, csv_path):
     if not os.path.exists(csv_path):
         pd.DataFrame([feedback_data]).to_csv(csv_path, sep=';', mode='w', header=True, index=False)
@@ -252,24 +253,6 @@ def feedback_explanation(rec, rec_type, rec_subtype, group, current_user, wine_i
         cols = st.columns([2,2,2,3])
 
         with cols[0]:
-            st.markdown("###### Did you find this explanation useful?")
-            ex_satisfaction = st.feedback("thumbs", key="satisfaction")
-            if ex_satisfaction is not None:
-                st.markdown(f"You selected: {sentiment_mapping[ex_satisfaction]}. Thanks!")
-
-        with cols[1]:
-            st.markdown(f"###### Does this explanation meet {people} requirements?")
-            ex_effectiveness = st.feedback("thumbs", key="effectiveness")
-            if ex_effectiveness is not None:
-                st.markdown(f"You selected: {sentiment_mapping[ex_effectiveness]}. Thanks!")
-
-        with cols[2]:
-            st.markdown("###### After the explanation, are you willing to give this wine a chance?")
-            ex_persuasiveness = st.feedback("thumbs", key="persuasiveness")
-            if ex_persuasiveness is not None:
-                st.markdown(f"You selected: {sentiment_mapping[ex_persuasiveness]}. Thanks!")
-
-        with cols[3]:
             if rec == 'recommend_group':
                 st.markdown(f"###### Rate your individual satisfaction with the recommendation")
                 c1, c12, c2 = st.columns([2,0.2,2.5], vertical_alignment="center")
@@ -284,8 +267,54 @@ def feedback_explanation(rec, rec_type, rec_subtype, group, current_user, wine_i
                         c2.markdown(f"You selected: {stars_mapping[ex_fairness]} star(s). Thanks {member}!")
                 
                 st.session_state['current_fairness_dict'] = current_fairness_dict # save updated dictionary 
-        
-        
+            
+            else:
+                st.markdown("###### Rate your individual satisfaction with the recommendation")
+                ex_satisfaction = st.feedback("stars", key='satisfaction', disabled=False)  # Feedback widget is enabled
+                if ex_satisfaction is not None:
+                    st.markdown(f"You selected: {stars_mapping[ex_satisfaction]} star(s). Thanks!")
+
+        with cols[1]:
+            st.markdown(f"###### Does this explanation meet {people} requirements?")
+            ex_effectiveness = st.feedback("thumbs", key="effectiveness")
+            if ex_effectiveness is not None:
+                st.markdown(f"You selected: {sentiment_mapping[ex_effectiveness]}. Thanks!")
+
+        with cols[2]:
+            st.markdown("###### After the explanation, are you willing to give this wine a chance?")
+            ex_persuasiveness = st.feedback("thumbs", key="persuasiveness")
+            if ex_persuasiveness is not None:
+                st.markdown(f"You selected: {sentiment_mapping[ex_persuasiveness]}. Thanks!")
+
+        with cols[3]:
+            st.markdown("###### Did the explanation help you understand why this item was recommended to you?")
+            ex_transparency = st.feedback("thumbs", key="transparency")
+            if ex_transparency is not None:
+                st.markdown(f"You selected: {sentiment_mapping[ex_transparency]}. Thanks!")
+            
+        for i in [0,1,2,3]:
+                cols[i].markdown("###")
+        with cols[0]:
+            st.markdown("###### Do you think the explanation is accurate in reflecting your preferences?")
+            ex_accuracy = st.feedback("thumbs", key="accuracy")
+            if ex_accuracy is not None:
+                st.markdown(f"You selected: {sentiment_mapping[ex_accuracy]}. Thanks!")
+        with cols[1]:
+            st.markdown(f"###### Did the recommendation help you make a final decision on which wine to select?")
+            ex_effectiveness1 = st.feedback("thumbs", key="effectiveness1")
+            if ex_effectiveness1 is not None:
+                st.markdown(f"You selected: {sentiment_mapping[ex_effectiveness1]}. Thanks!")
+        with cols[2]:
+            st.markdown(f"###### Did the recommendation provide enough detail about the wine?")
+            ex_detail = st.feedback("thumbs", key="detail")
+            if ex_detail is not None:
+                st.markdown(f"You selected: {sentiment_mapping[ex_detail]}. Thanks!")
+        with cols[3]:
+            st.markdown(f"###### Did the recommendation help you assess how trustworthy the wine selection is?")
+            ex_trust = st.feedback("thumbs", key="trust")
+            if ex_trust is not None:
+                st.markdown(f"You selected: {sentiment_mapping[ex_trust]}. Thanks!")
+
         expl_feed = st.button(label="Submit", key="expl")
 
     # Save feedback when 'submit' button has been selected
@@ -296,11 +325,17 @@ def feedback_explanation(rec, rec_type, rec_subtype, group, current_user, wine_i
             'RecSys': (rec).split("_")[-1],
             'RecSysType': (rec_type).lower(),
             'RecSysSubtype': (extract_string(rec_subtype)).split("[")[-1].removesuffix("]"),
-            'Satisfaction': (sentiment_mapping[ex_satisfaction]).split("/")[-1].removesuffix(":"),
+            'Satisfaction': (stars_mapping[ex_satisfaction]).split("/")[-1].removesuffix(":"),
             'Effectiveness': (sentiment_mapping[ex_effectiveness]).split("/")[-1].removesuffix(":"),
-            'Fairness': current_fairness_dict if rec == 'recommend_group' else "", 
+            'Fairness': current_fairness_dict if rec == 'recommend_group' else stars_mapping[ex_satisfaction], 
             'Persuasiveness': (sentiment_mapping[ex_persuasiveness]).split("/")[-1].removesuffix(":"),
-            'Persuasiveness_link': clicked
+            'Persuasiveness_link': clicked,
+            'Transparency': (sentiment_mapping[ex_transparency]).split("/")[-1].removesuffix(":"),
+            'Accuracy': (sentiment_mapping[ex_accuracy]).split("/")[-1].removesuffix(":"),
+            'Effectiveness1': (sentiment_mapping[ex_effectiveness1]).split("/")[-1].removesuffix(":"),
+            'Detail': (sentiment_mapping[ex_detail]).split("/")[-1].removesuffix(":"),
+            'Trust': (sentiment_mapping[ex_trust]).split("/")[-1].removesuffix(":")
+
         }
         save_feedback(feedback_data, "feedback\\explanation_feedback.csv")
         st.session_state['feedback_submitted'] = True
