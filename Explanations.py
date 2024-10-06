@@ -1,6 +1,7 @@
 import os 
 import re
 import ast
+import random
 import webbrowser
 import pandas as pd
 import streamlit as st
@@ -22,27 +23,57 @@ def join_list_with_and(items):
         return ', '.join(items[:-1]) + ' and ' + items[-1] if len(items) > 1 else ''.join(items)
 
 
-def generate_personalized_explanation(recommended_wine: pd.Series, user_ratings: pd.DataFrame, all_wines: pd.DataFrame) -> Dict[str, str]:
+def generate_random_explanation(recommended_wine: pd.Series) -> str:
+    """
+    Generate a random explanation for a wine recommendation.
+
+    Args:
+        recommended_wine (pd.Series): The recommended wine's features.
+
+    Returns:
+        str: A randomly generated explanation for the wine recommendation.
+    """
+    explanation_types = [
+        lambda: f"We recommend this wine because it's a {recommended_wine['Type'].lower()} wine which you might like.",
+        lambda: f"This wine has an ABV of {recommended_wine['ABV']}%, which many people enjoy.",
+        lambda: f"Coming from {recommended_wine['Country']}, this wine offers a unique taste experience.",
+        lambda: f"The {recommended_wine['Acidity'].lower()} acidity of this wine complements many dishes.",
+        lambda: f"This wine features {', '.join(recommended_wine['Grapes'][:2])} grapes, creating a delightful flavor profile.",
+        lambda: f"Many people have enjoyed wines from the {recommended_wine['RegionName']} region.",
+        lambda: f"The {recommended_wine['Elaborate']} wine has received positive feedback from other users.",
+        lambda: f"The {recommended_wine['WineryName']} winery is known for producing high-quality wines.",
+        lambda: f"This wine pairs well with {', '.join(recommended_wine['Harmonize'][:2])}, making it versatile for various occasions."
+    ]
+
+    # Randomly select 1 to 3 explanations
+    num_explanations = random.randint(1, 3)
+    selected_explanations = random.sample(explanation_types, num_explanations)
+    
+    return " ".join(explanation() for explanation in selected_explanations)
+
+
+def generate_personalized_explanation(recommended_wine: pd.Series, ratings: pd.DataFrame, all_wines: pd.DataFrame, threshold) -> Dict[str, str]:
     """
     Generate a personalized explanation for a wine recommendation.
 
     Args:
         recommended_wine (pd.Series): The recommended wine's features.
-        user_ratings (pd.DataFrame): The user's rating history.
+        ratings (pd.DataFrame): The user's or group's rating history.
         all_wines (pd.DataFrame): DataFrame containing all wines and their features.
 
     Returns:
         Dict[str, str]: A dictionary of personalized explanations for different features.
     """
-    liked_wines = all_wines[all_wines['WineID'].isin(user_ratings[user_ratings['Rating'] >= 4]['WineID'])].drop_duplicates(subset=['WineID'])
+    liked_wines = all_wines[all_wines['WineID'].isin(ratings[ratings['Rating'] >= 4]['WineID'])].drop_duplicates(subset=['WineID'])
     
     explanations = {}
+    who = "You" if threshold == 0.8 else "The group"
     
     if len(liked_wines) > 2:
         # Function to check if a feature is present in more than 80% of liked wines
         def is_frequent_feature(feature_name):
             feature_counts = liked_wines[feature_name].value_counts(normalize=True)
-            return feature_counts[feature_counts >= 0.8].index.tolist()
+            return feature_counts[feature_counts >= threshold].index.tolist()
         
         # Strategy for string features: Type, Elaborate, Body, Acidity, Country
         string_features = ['Type', 'Elaborate', 'Body', 'Acidity']
@@ -52,7 +83,7 @@ def generate_personalized_explanation(recommended_wine: pd.Series, user_ratings:
             if recommended_wine[feature] in frequent_values:
                 recs.append(recommended_wine[feature].lower())
         if recs:
-            explanations["string_features"] = f"You've consistently shown a strong preference for {join_list_with_and(recs)} wines, and this recommendation aligns perfectly with your taste."
+            explanations["string_features"] = f"{who} have consistently shown a strong preference for **{join_list_with_and(recs)}** wines, and this recommendation aligns perfectly with your taste."
         
         # Strategy for location features
         location_features = ['WineryName', 'RegionName', 'Country']
@@ -64,18 +95,18 @@ def generate_personalized_explanation(recommended_wine: pd.Series, user_ratings:
 
         if recs_loc:
             if "WineryName" in recs_loc and "RegionName" in recs_loc and "Country" in recs_loc:
-                explanation = (f"You've shown a strong preference for wines from {recs_loc['WineryName']} winery in the {recs_loc['RegionName']} region of {recs_loc['Country']}.")
+                explanation = (f"{who} have shown a strong preference for wines from **{recs_loc['WineryName']}** winery in the **{recs_loc['RegionName']}** region of **{recs_loc['Country']}**.")
             elif "RegionName" in recs_loc and "Country" in recs_loc:
-                explanation = (f"You've shown a strong preference for wines from the {recs_loc['RegionName']} region of {recs_loc['Country']}.")
+                explanation = (f"{who} have shown a strong preference for wines from the **{recs_loc['RegionName']}** region of **{recs_loc['Country']}**.")
             elif "Country" in recs_loc:
-                explanation = f"You've shown a strong preference for wines from {recs_loc['Country']}."
+                explanation = f"{who} have shown a strong preference for wines from **{recs_loc['Country']}**."
 
             explanations["location_features"] = explanation
         
         # Strategy for ABV
         avg_abv = liked_wines['ABV'].mean()
         if abs(recommended_wine['ABV'] - avg_abv) <= 1:
-            explanations['ABV'] = f"This wine's ABV ({recommended_wine['ABV']}%) is similar to your preferred average of {avg_abv:.1f}%."
+            explanations['ABV'] = f"This wine's ABV (**{recommended_wine['ABV']}%**) is similar to your preferred average of {avg_abv:.1f}%."
         
         harmonize_items = []
         # Strategy for Grapes and Harmonize
@@ -85,12 +116,12 @@ def generate_personalized_explanation(recommended_wine: pd.Series, user_ratings:
             common_items = set(user_items) & set(recommended_items)
             if common_items:
                 if feature_name == 'Grapes':
-                    return f"This wine features {join_list_with_and(list(common_items))} grapes, which are also present among your favourite wines."
+                    return f"This wine features **{join_list_with_and(list(common_items))}** grapes, which are also present among your favourite wines."
                 elif feature_name == 'Harmonize':
                     harmonize_items.append(common_items)
                     common_items = [item.lower() for item in common_items]
                     d = "a dish" if len(common_items) == 1 else "dishes"
-                    return f"{recommended_wine['WineName']} pairs beautifully with {join_list_with_and(list(common_items))} {d} you've enjoyed alongside previous wines, making it an excellent choice for your next meal."
+                    return f"**{recommended_wine['WineName']}** pairs beautifully with **{join_list_with_and(list(common_items))}** {d} {who.lower()} have enjoyed alongside previous wines, making it an excellent choice for your next meal."
 
             return None
         
@@ -110,27 +141,23 @@ def generate_personalized_explanation(recommended_wine: pd.Series, user_ratings:
 def personalized_grupal(rec_type, rec_subtype, group):
     if rec_type == "Majority based": 
         if rec_subtype == "Each member votes for his/her **:violet[most preferred alternative]**.":
-            subexplanation = f" by identifying their {extract_string(rec_subtype)}s"
+            subexplanation = f"By identifying their {extract_string(rec_subtype)}s"
         else: 
-            subexplanation = f" by storing {extract_string(rec_subtype)} while applying a threshold of above 2.5 for each rating."
+            subexplanation = f"By storing {extract_string(rec_subtype)} while applying a threshold of above 2.5 for each rating."
     
     elif rec_type == "Consensus based":
         if rec_subtype == "**:violet[Add all]** individual ratings.":
-            subexplanation = f", calculating the sum of all ratings for each wine."
+            subexplanation = f"Calculating the sum of all ratings for each wine."
         else:
-            subexplanation = f", calculating the product of all ratings for each wine."
+            subexplanation = f"Calculating the product of all ratings for each wine."
     
     else: 
-        if rec_subtype == "Consider the **:violet[opinion of the most respected person]** within the group.":
-            subexplanation = f" considering the perspective of the most respected member."
-        else:
-            subexplanation = f" ensuring than {extract_string(rec_subtype)} "
-            op = "maximum" if rec_subtype == "Ensure that the **:violet[majority is satisfied]**." else "minimum"
+        subexplanation = f" Ensuring than {extract_string(rec_subtype)} "
+        op = "maximum" if rec_subtype == "Ensure that the **:violet[majority is satisfied]**." else "minimum"
+        subexplanation += f" by assuming that the group rating reflects the {op} of the individual ratings"
             
-            subexplanation += f" by assuming that the group rating reflects the {op} of the individual ratings."
-            
-    return (f"This wine has been identified as the best choice for all {len(group)} group members. "
-            f"Taking into account each user's previous ratings and{subexplanation}, this wine received the highest number of positive votes among them.")
+    return (f"This wine has been identified as the best choice for all {len(group)} group members taking into account each user's previous ratings. "
+            f"{subexplanation}, this wine received the highest number of positive votes among them.")
 
 
 ### INDIVIDUAL RECOMMENDATION EXPLANATIONS ###
@@ -155,9 +182,10 @@ def nonpersonalized(order):
             f"It could be an exciting new discovery that surprises you if you give it a try!🍷")
 
 
-def get_personalized_explanation(recommended_wine, current_user):
-    user_ratings = ratings_data[ratings_data['UserID'] == current_user]
-    explanations, harmonize_items = generate_personalized_explanation(recommended_wine, user_ratings, wine_data)
+def get_personalized_explanation(recommended_wine, user, group):
+    ratings = ratings_data[ratings_data['UserID'].isin(user)] if group else ratings_data[ratings_data['UserID'] == user]
+    threshold = 0.6 if group else 0.8
+    explanations, harmonize_items = generate_personalized_explanation(recommended_wine, ratings, wine_data, threshold)
     pers_expl = ""
     for feature, explanation in explanations.items():
         if explanation: # print non-empty explanations
@@ -179,7 +207,9 @@ def explanation(rec, rec_type, rec_subtype, group, current_user, sorted_df, orde
     else: 
         explanation = personalized_grupal(rec_type, rec_subtype, group)
 
-    extended_explanation, harmonize_items = get_personalized_explanation(wine_info, current_user) if rec != 'try_new' else ("", None)
+    user, members = (current_user, False) if group == "" else (group, True)
+    extended_explanation, harmonize_items = get_personalized_explanation(wine_info, user, members) if rec != 'try_new' else ("", None)
+    
     grapes = join_list_with_and(wine_info["Grapes"])
     harmonize = [item.lower() for item in wine_info['Harmonize'] if item not in list(harmonize_items)] if harmonize_items else [item.lower() for item in wine_info['Harmonize']]
     extra_harmonize = ""
@@ -318,7 +348,7 @@ def feedback_explanation(rec, rec_type, rec_subtype, group, current_user, wine_i
         expl_feed = st.button(label="Submit", key="expl")
 
     # Save feedback when 'submit' button has been selected
-    if expl_feed: # all([ex_satisfaction is not None, ex_effectiveness is not None, ex_fairness is not None, ex_persuasiveness is not None]):
+    if expl_feed: 
         feedback_data = {
             'UserID': "" if rec == "try_new" else (group if rec == 'recommend_group' else current_user),
             'WineID': wine_info['WineID'],
