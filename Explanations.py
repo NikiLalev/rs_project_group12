@@ -140,10 +140,7 @@ def generate_personalized_explanation(recommended_wine: pd.Series, ratings: pd.D
 # Function to explain the recommended wine for a group
 def personalized_grupal(rec_type, rec_subtype, group):
     if rec_type == "Majority based": 
-        if rec_subtype == "Each member votes for his/her **:violet[most preferred alternative]**.":
-            subexplanation = f"By identifying their {extract_string(rec_subtype)}s"
-        else: 
-            subexplanation = f"By storing {extract_string(rec_subtype)} while applying a threshold of above 2.5 for each rating."
+        subexplanation = f"By storing all member's favourite alternatives"
     
     elif rec_type == "Consensus based":
         if rec_subtype == "**:violet[Add all]** individual ratings.":
@@ -215,7 +212,7 @@ def explanation(rec, rec_type, rec_subtype, group, current_user, sorted_df, orde
     extra_harmonize = ""
     if harmonize: 
         harmonize = join_list_with_and(harmonize)
-        extra_harmonize = f'We’re confident you’ll enjoy its balance of flavors, which also complement delightfully **{harmonize}**, an ideal companion to elevate any meal experience.' 
+        extra_harmonize = f'We’re confident you’ll enjoy its balance of flavors, which also complement **{harmonize}** delightfully, an ideal companion to elevate any meal experience.' 
         
     
     # Reset 'clicked' state every time the function is called
