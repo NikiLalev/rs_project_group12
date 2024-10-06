@@ -1,4 +1,2 @@
-UserID;WineID;RecSys;RecSysType;RecSysSubtype;Satisfaction;Effectiveness;Fairness;Persuasiveness;Persuasiveness_link
-1000024;181199;individual;users similar to me;item interaction;thumb_up;thumb_up;;thumb_up;Yes
-[1378680, 1218927, 1997772];100067;group;all equal;most preferred alternative;thumb_up;thumb_up;{1378680: None, 1218927: '5', 1997772: None};thumb_up;Yes
-1989751;112084;individual;users similar to me;item interaction;thumb_up;thumb_up;;thumb_up;Yes
+UserID;WineID;RecSys;RecSysType;RecSysSubtype;Satisfaction;Effectiveness;Fairness;Persuasiveness;Persuasiveness_link;Transparency;Accuracy;Effectiveness1;Detail;Trust
+2035408;182169;individual;**:violet[similar wines]** to what i have enjoyed;;5;thumb_up;5;thumb_up;Yes;thumb_up;thumb_up;thumb_up;thumb_up;thumb_up
